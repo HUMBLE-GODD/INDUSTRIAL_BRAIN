@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     # Qdrant
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
+    QDRANT_COLLECTION_NAME: str = "industrial_docs"
+    QDRANT_DISTANCE_METRIC: str = "cosine"
+
+    # Embeddings (BGE-base-en-v1.5 — see implementation_plan.md)
+    EMBEDDING_MODEL_NAME: str = "BAAI/bge-base-en-v1.5"
+    EMBEDDING_DIMENSION: int = 768
+    EMBEDDING_DOCUMENT_PREFIX: str = "Represent this industrial document for retrieval: "
+    EMBEDDING_QUERY_PREFIX: str = "Represent this search query for retrieving industrial documents: "
     
     # JWT
     JWT_SECRET: str = "supersecretkey"

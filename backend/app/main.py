@@ -7,7 +7,7 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.db.session import get_engine
 from app.db.neo4j import get_neo4j_driver, close_neo4j_driver
-from app.db.qdrant import get_qdrant_client
+from app.db.qdrant import get_qdrant_client, init_qdrant
 from app.api.v1 import api_router
 
 logger = logging.getLogger(__name__)
@@ -35,10 +35,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Neo4j connection failed: {e}")
         
-    # Test Qdrant
+    # Test Qdrant and ensure vector collection
     try:
         qdrant_client = get_qdrant_client()
         await qdrant_client.get_collections()
+        await init_qdrant(vector_size=settings.EMBEDDING_DIMENSION)
         logger.info("Qdrant connected successfully.")
     except Exception as e:
         logger.error(f"Qdrant connection failed: {e}")
