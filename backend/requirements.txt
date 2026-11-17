@@ -9,6 +9,9 @@ pydantic-settings
 python-dotenv
 neo4j
 qdrant-client
+sentence-transformers
+pytest
+pytest-asyncio
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
