@@ -1,7 +1,7 @@
 # M1 — Platform, Data Contract, and Core API
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
-**Owner:** Team Member 1
+**Owner:** Tatvik
 **Primary area:** backend foundation, PostgreSQL schema, identity, and equipment reference APIs
 
 ## Outcome

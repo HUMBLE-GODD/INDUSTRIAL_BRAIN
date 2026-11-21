@@ -1,7 +1,7 @@
 # M3 — Knowledge Graph and Supplier-Risk Evidence
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
-**Owner:** Team Member 3
+**Owner:** Hardik
 **Primary area:** Neo4j integration, graph population, and explainable relationship queries
 
 ## Outcome

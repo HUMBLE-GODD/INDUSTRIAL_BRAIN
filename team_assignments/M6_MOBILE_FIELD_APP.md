@@ -1,7 +1,7 @@
 # M6 — Mobile Field Workflow
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
-**Owner:** Team Member 6
+**Owner:** Surbhi
 **Primary area:** field asset lookup, issue reporting, and API-backed mobile experience
 
 ## What you’ll learn

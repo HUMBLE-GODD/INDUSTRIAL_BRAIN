@@ -1,7 +1,7 @@
 # M5 — Web Dashboard Integration
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
-**Owner:** Team Member 5
+**Owner:** Anchal
 **Primary area:** connect the Next.js dashboard to the API and present evidence clearly
 
 ## What you’ll learn

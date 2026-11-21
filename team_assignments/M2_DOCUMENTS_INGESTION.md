@@ -1,7 +1,7 @@
 # M2 — Document Intake and Evidence Index
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
-**Owner:** Team Member 2
+**Owner:** Kavyansh
 **Primary area:** file validation, text extraction, chunking, embeddings, and Qdrant metadata
 
 ## Outcome

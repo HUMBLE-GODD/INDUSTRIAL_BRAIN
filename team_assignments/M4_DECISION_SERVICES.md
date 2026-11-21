@@ -1,7 +1,7 @@
 # M4 — AI Query, Maintenance, and Compliance Services
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
-**Owner:** Team Member 4
+**Owner:** Prathmesh
 **Primary area:** evidence-grounded query responses, maintenance predictions, and compliance gaps
 
 ## What you’ll learn

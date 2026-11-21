@@ -148,12 +148,12 @@ After the six independent PRs are merged, wire the adapters to the real services
 
 ## 👥 Team
 
-- **M1:** Team Member 1
-- **M2:** Team Member 2
-- **M3:** Team Member 3
-- **M4:** Team Member 4
-- **M5:** Team Member 5
-- **M6:** Team Member 6
+- **M1:** Tatvik
+- **M2:** Kavyansh
+- **M3:** Hardik
+- **M4:** Prathmesh
+- **M5:** Anchal
+- **M6:** Surbhi
 
 `make clean` deletes local database volumes, including stored demo data.
 `make seed-reset` deletes every node and relationship in the configured Neo4j database before reseeding; use it only with a dedicated demo database.
