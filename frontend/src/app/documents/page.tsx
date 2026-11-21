@@ -41,11 +41,11 @@ export default function DocumentsPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Technical Documents & SOP Library"
-        description="Centralized document store for engineering manuals, safety inspection logs, and sensor baselines."
-        badge={<Badge variant="Healthy" dot>5 Documents Indexed</Badge>}
+        description="Local sample document names for the demo equipment. No documents are indexed or connected."
+        badge={<Badge variant="Info" dot>5 Local Samples</Badge>}
         actions={
           <Button variant="primary" size="sm" icon={<UploadCloud className="w-4 h-4" />}>
-            Upload Document
+            Add Demo Document
           </Button>
         }
       />
@@ -56,10 +56,10 @@ export default function DocumentsPage() {
           <UploadCloud className="w-6 h-6" />
         </div>
         <h3 className="text-sm font-semibold text-white">
-          Click or drag files here to upload
+          Document upload is not connected in this local demo
         </h3>
         <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-          Supports PDF manuals, CAD specifications, CSV telemetry logs, and ISO audit checklists up to 50MB.
+          The rows below are local sample metadata only.
         </p>
       </div>
 
@@ -104,12 +104,18 @@ export default function DocumentsPage() {
                 <th className="py-3 px-4">Size</th>
                 <th className="py-3 px-4">Uploaded By</th>
                 <th className="py-3 px-4">Last Updated</th>
-                <th className="py-3 px-4">Vector Status</th>
+                <th className="py-3 px-4">Demo Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {filteredDocs.map((doc) => (
+              {filteredDocs.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 px-4 text-center text-slate-500">
+                    No documents match this search and filter.
+                  </td>
+                </tr>
+              ) : filteredDocs.map((doc) => (
                 <tr
                   key={doc.id}
                   className="hover:bg-slate-800/30 transition-colors group"
@@ -130,7 +136,7 @@ export default function DocumentsPage() {
                   </td>
                   <td className="py-3.5 px-4">
                     <Badge
-                      variant={doc.status === "Indexed" ? "Resolved" : "Pending"}
+                      variant="Info"
                       size="sm"
                       dot
                     >
@@ -142,12 +148,14 @@ export default function DocumentsPage() {
                       <button
                         className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800"
                         title="Download Document"
+                        aria-label={`Download ${doc.name}`}
                       >
                         <Download className="w-3.5 h-3.5" />
                       </button>
                       <button
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800"
                         title="Delete Document"
+                        aria-label={`Delete ${doc.name}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

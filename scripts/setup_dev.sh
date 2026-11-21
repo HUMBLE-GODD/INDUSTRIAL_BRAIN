@@ -55,7 +55,7 @@ while true; do
     fi
 
     ALL_HEALTHY=true
-    for SERVICE in postgres neo4j qdrant; do
+    for SERVICE in postgres neo4j qdrant backend; do
         CONTAINER_ID=$(docker compose ps -q "$SERVICE" 2>/dev/null)
         if [ -z "$CONTAINER_ID" ]; then
             ALL_HEALTHY=false

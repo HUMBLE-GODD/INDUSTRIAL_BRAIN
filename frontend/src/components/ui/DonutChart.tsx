@@ -1,5 +1,4 @@
-import React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 export interface DonutSegment {
   label: string;
@@ -29,7 +28,11 @@ export function DonutChart({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPercent = 0;
+  const segmentOffsets = segments.map((_, index) =>
+    segments
+      .slice(0, index)
+      .reduce((accumulatedPercent, segment) => accumulatedPercent + segment.percentage, 0)
+  );
 
   return (
     <div
@@ -62,10 +65,9 @@ export function DonutChart({
               (segment.percentage / 100) * circumference
             } ${circumference}`;
             const strokeDashoffset = -(
-              (accumulatedPercent / 100) *
+              (segmentOffsets[index] / 100) *
               circumference
             );
-            accumulatedPercent += segment.percentage;
 
             return (
               <circle

@@ -21,9 +21,9 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
-        title="Industrial Telemetry & Operational Analytics"
-        description="Predictive failure trend models, MTBF/MTTR diagnostics, and energy efficiency telemetry."
-        badge={<Badge variant="Healthy" dot>Telemetry Realtime Stream</Badge>}
+        title="Seed Equipment Demo Analytics"
+        description="Illustrative metrics for the five seeded equipment records. No live telemetry is connected."
+        badge={<Badge variant="Info" dot>Local Demo Values</Badge>}
         actions={
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -141,7 +141,7 @@ export default function AnalyticsPage() {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-xs mb-1.5 font-medium">
-                  <span className="text-slate-300">Turbine T-501 (Continuous Load)</span>
+                  <span className="text-slate-300">Pump P-101 (EQ-001)</span>
                   <span className="text-cyan-400 font-bold">96.2% Eff</span>
                 </div>
                 <ProgressBar value={96} color="cyan" size="md" />
@@ -149,7 +149,7 @@ export default function AnalyticsPage() {
 
               <div>
                 <div className="flex justify-between text-xs mb-1.5 font-medium">
-                  <span className="text-slate-300">Pump P-101 (High Pressure Stage)</span>
+                  <span className="text-slate-300">Heat Exchanger HX-202 (EQ-002)</span>
                   <span className="text-cyan-400 font-bold">91.8% Eff</span>
                 </div>
                 <ProgressBar value={92} color="cyan" size="md" />
@@ -157,7 +157,7 @@ export default function AnalyticsPage() {
 
               <div>
                 <div className="flex justify-between text-xs mb-1.5 font-medium">
-                  <span className="text-slate-300">Motor M-204 (Thermal Drift Compensated)</span>
+                  <span className="text-slate-300">Compressor C-305 (EQ-003)</span>
                   <span className="text-amber-400 font-bold">81.4% Eff</span>
                 </div>
                 <ProgressBar value={81} color="amber" size="md" />
@@ -165,18 +165,26 @@ export default function AnalyticsPage() {
 
               <div>
                 <div className="flex justify-between text-xs mb-1.5 font-medium">
-                  <span className="text-slate-300">Compressor C-01 (Under Dynamic Throttle)</span>
+                  <span className="text-slate-300">Conveyor CB-410 (EQ-004)</span>
                   <span className="text-amber-400 font-bold">65.0% Eff</span>
                 </div>
                 <ProgressBar value={65} color="amber" size="md" />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs mb-1.5 font-medium">
+                  <span className="text-slate-300">Boiler BLR-501 (EQ-005)</span>
+                  <span className="text-cyan-400 font-bold">89.0% Eff</span>
+                </div>
+                <ProgressBar value={89} color="cyan" size="md" />
               </div>
             </div>
 
             {/* Sparkline Overlay */}
             <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-400">
-                <span>Aggregated Plant Telemetry Waveform</span>
-                <span className="text-emerald-400 font-mono">1.2 MW Nominal</span>
+                <span>Illustrative Equipment Trend</span>
+                <span className="text-emerald-400 font-mono">Local Demo</span>
               </div>
               <Sparkline
                 data={[60, 68, 65, 78, 72, 85, 92, 88, 95, 94]}

@@ -6,14 +6,19 @@ their components, suppliers, locations, failure modes, and all
 relevant relationships.
 
 Run:
-    python knowledge_graph/seed.py
+    python seed.py
 
 Pre-requisites:
-    - Neo4j running (docker compose up -d  OR  local install)
+    - Neo4j running (docker compose up -d OR local install)
     - .env file filled in (copy from .env.example)
+
+The default seed is idempotent. Pass --reset only for a dedicated demo database
+because it deletes every node and relationship in the selected Neo4j database.
 """
 
 from __future__ import annotations
+import argparse
+
 from graph_service import GraphService
 from rich.console import Console
 from rich.table import Table
@@ -131,6 +136,7 @@ FAILURE_MODES = [
 
 # Relationship: which failure modes are associated with which components
 COMPONENT_FAILURE_LINKS = [
+    ("CMP-005", "FM-001"),  # Shell Gasket → Seal Leakage
     ("CMP-001", "FM-001"),  # Mechanical Seal → Seal Leakage
     ("CMP-002", "FM-002"),  # Drive Shaft Bearing → Bearing Overheating
     ("CMP-006", "FM-003"),  # Inlet Valve → Valve Sticking
@@ -145,87 +151,107 @@ COMPONENT_FAILURE_LINKS = [
 # ② SEED FUNCTION
 # ===========================================================================
 
-def seed(svc: GraphService) -> None:
+def seed(svc: GraphService, *, reset: bool = False) -> None:
     console.rule("[bold cyan]Step 1 · Create Schema (constraints + indexes)[/bold cyan]")
     svc.create_constraints_and_indexes()
     console.print("  ✅ Constraints and indexes applied")
 
-    console.rule("[bold cyan]Step 2 · Clear existing seed data[/bold cyan]")
-    svc.drop_all_data()
-    console.print("  ✅ Graph cleared")
+    if reset:
+        console.rule("[bold red]Reset requested · Delete all graph data[/bold red]")
+        svc.drop_all_data()
+        console.print("  ✅ Graph cleared")
+    else:
+        console.rule("[bold cyan]Step 2 · Safely merge demo data[/bold cyan]")
 
     # ── Locations ──────────────────────────────────────────────────────────
     console.rule("[bold cyan]Step 3 · Create Location nodes[/bold cyan]")
     for loc in LOCATIONS:
-        svc.create_node("Location", loc)
+        svc.merge_node(
+            "Location",
+            {"location_id": loc["location_id"]},
+            {key: value for key, value in loc.items() if key != "location_id"},
+        )
     console.print(f"  ✅ {len(LOCATIONS)} Location nodes created")
 
     # ── Suppliers ──────────────────────────────────────────────────────────
     console.rule("[bold cyan]Step 4 · Create Supplier nodes[/bold cyan]")
     for sup in SUPPLIERS:
-        svc.create_node("Supplier", sup)
+        svc.merge_node(
+            "Supplier",
+            {"supplier_id": sup["supplier_id"]},
+            {key: value for key, value in sup.items() if key != "supplier_id"},
+        )
     console.print(f"  ✅ {len(SUPPLIERS)} Supplier nodes created")
 
     # ── Equipment ──────────────────────────────────────────────────────────
     console.rule("[bold cyan]Step 5 · Create Equipment nodes[/bold cyan]")
     for eq in EQUIPMENT:
-        loc_id = eq.pop("location_id")
-        svc.create_node("Equipment", eq)
+        loc_id = eq["location_id"]
+        svc.merge_node(
+            "Equipment",
+            {"equipment_id": eq["equipment_id"]},
+            {key: value for key, value in eq.items() if key not in {"equipment_id", "location_id"}},
+        )
         # Equipment ─[LOCATED_AT]─> Location
-        svc.create_relationship(
+        svc.merge_relationship(
             "Equipment", "equipment_id", eq["equipment_id"],
             "LOCATED_AT",
             "Location",  "location_id", loc_id,
         )
-        eq["location_id"] = loc_id  # restore for later reference
     console.print(f"  ✅ {len(EQUIPMENT)} Equipment nodes created with LOCATED_AT relationships")
 
     # ── Components ─────────────────────────────────────────────────────────
     console.rule("[bold cyan]Step 6 · Create Component nodes + relationships[/bold cyan]")
     for cmp in COMPONENTS:
-        eq_id  = cmp.pop("equipment_id")
-        sup_id = cmp.pop("supplier_id")
-        svc.create_node("Component", cmp)
+        eq_id = cmp["equipment_id"]
+        sup_id = cmp["supplier_id"]
+        svc.merge_node(
+            "Component",
+            {"component_id": cmp["component_id"]},
+            {key: value for key, value in cmp.items() if key not in {"component_id", "equipment_id", "supplier_id"}},
+        )
         # Equipment ─[HAS_COMPONENT]─> Component
-        svc.create_relationship(
+        svc.merge_relationship(
             "Equipment", "equipment_id", eq_id,
             "HAS_COMPONENT",
             "Component", "component_id", cmp["component_id"],
         )
         # Component ─[SUPPLIED_BY]─> Supplier
-        svc.create_relationship(
+        svc.merge_relationship(
             "Component", "component_id", cmp["component_id"],
             "SUPPLIED_BY",
             "Supplier", "supplier_id", sup_id,
         )
-        cmp["equipment_id"] = eq_id
-        cmp["supplier_id"]  = sup_id
     console.print(f"  ✅ {len(COMPONENTS)} Component nodes with HAS_COMPONENT + SUPPLIED_BY relationships")
 
     # ── Failure Modes ──────────────────────────────────────────────────────
     console.rule("[bold cyan]Step 7 · Create FailureMode nodes[/bold cyan]")
     for fm in FAILURE_MODES:
-        svc.create_node("FailureMode", fm)
+        svc.merge_node(
+            "FailureMode",
+            {"failure_mode_id": fm["failure_mode_id"]},
+            {key: value for key, value in fm.items() if key != "failure_mode_id"},
+        )
     console.print(f"  ✅ {len(FAILURE_MODES)} FailureMode nodes created")
 
     # ── Component → FailureMode links ─────────────────────────────────────
     console.rule("[bold cyan]Step 8 · Link Components to FailureModes[/bold cyan]")
     for cmp_id, fm_id in COMPONENT_FAILURE_LINKS:
-        svc.create_relationship(
+        svc.merge_relationship(
             "Component",   "component_id",    cmp_id,
             "PRONE_TO",
             "FailureMode", "failure_mode_id", fm_id,
         )
     console.print(f"  ✅ {len(COMPONENT_FAILURE_LINKS)} PRONE_TO relationships created")
 
-    # ── Equipment ─[SIMILAR_TO]─> Equipment (same type) ───────────────────
+    # ── Equipment ─[SIMILAR_TO]─> Equipment (shared supplier/component) ───
     console.rule("[bold cyan]Step 9 · Cross-Equipment SIMILAR_TO relationships[/bold cyan]")
     similar_pairs = [
         ("EQ-001", "EQ-005"),   # both have pump components
         ("EQ-002", "EQ-003"),   # both use SUP-005 (low-rated)
     ]
     for a, b in similar_pairs:
-        svc.create_relationship(
+        svc.merge_relationship(
             "Equipment", "equipment_id", a,
             "SIMILAR_TO",
             "Equipment", "equipment_id", b,
@@ -274,8 +300,16 @@ def print_summary(svc: GraphService) -> None:
 # ===========================================================================
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Seed the Industrial Brain demo knowledge graph.")
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Delete all nodes and relationships before seeding. Use only on a dedicated demo database.",
+    )
+    args = parser.parse_args()
+
     console.rule("[bold magenta]Industrial Brain — Knowledge Graph Seed[/bold magenta]")
     with GraphService() as svc:
-        seed(svc)
+        seed(svc, reset=args.reset)
         print_summary(svc)
     console.rule("[bold green]✅  Seeding complete![/bold green]")

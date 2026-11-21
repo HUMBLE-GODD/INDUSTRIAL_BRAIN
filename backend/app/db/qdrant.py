@@ -35,6 +35,15 @@ def get_qdrant_client() -> AsyncQdrantClient:
     return _client
 
 
+async def close_qdrant_client() -> None:
+    """Close the shared async client during application shutdown."""
+    global _client
+    if _client is not None:
+        client = _client
+        _client = None
+        await client.close()
+
+
 async def ensure_qdrant_collection(
     collection_name: str | None = None,
     vector_size: int | None = None,
@@ -44,7 +53,9 @@ async def ensure_qdrant_collection(
     settings = get_settings()
     client = get_qdrant_client()
     name = collection_name or settings.QDRANT_COLLECTION_NAME
-    size = vector_size or settings.EMBEDDING_DIMENSION
+    size = settings.EMBEDDING_DIMENSION if vector_size is None else vector_size
+    if size <= 0:
+        raise ValueError("Qdrant vector size must be a positive integer.")
     metric = distance or get_distance_metric()
 
     existing = await client.get_collections()

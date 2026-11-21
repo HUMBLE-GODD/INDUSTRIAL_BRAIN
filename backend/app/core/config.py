@@ -1,11 +1,15 @@
 from functools import lru_cache
+from typing import Literal
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     APP_NAME: str = "Industrial Brain"
     VERSION: str = "1.0.0"
     DEBUG: bool = False
+    APP_ENV: Literal["development", "test", "production"] = "development"
     API_V1_PREFIX: str = "/api/v1"
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8081,http://127.0.0.1:8081"
     
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/industrial_brain"
@@ -13,7 +17,7 @@ class Settings(BaseSettings):
     # Neo4j
     NEO4J_URI: str = "bolt://localhost:7687"
     NEO4J_USER: str = "neo4j"
-    NEO4J_PASSWORD: str = "password"
+    NEO4J_PASSWORD: str = "industrial_brain_neo4j"
     
     # Qdrant
     QDRANT_HOST: str = "localhost"
@@ -28,7 +32,7 @@ class Settings(BaseSettings):
     EMBEDDING_QUERY_PREFIX: str = "Represent this search query for retrieving industrial documents: "
     
     # JWT
-    JWT_SECRET: str = "supersecretkey"
+    JWT_SECRET: str = "dev-only-not-for-production"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
     
@@ -40,6 +44,18 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @model_validator(mode="after")
+    def require_production_jwt_secret(self):
+        insecure_secrets = {
+            "",
+            "supersecretkey",
+            "dev-only-not-for-production",
+            "change-me-to-a-random-secret-in-production",
+        }
+        if self.APP_ENV == "production" and self.JWT_SECRET in insecure_secrets:
+            raise ValueError("Set a unique JWT_SECRET before running with APP_ENV=production.")
+        return self
 
 @lru_cache()
 def get_settings() -> Settings:

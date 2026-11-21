@@ -1,4 +1,4 @@
-.PHONY: dev down restart logs logs-backend clean seed test shell psql neo4j-shell setup
+.PHONY: dev down restart logs logs-backend clean seed seed-reset verify-graph test shell psql neo4j-shell setup
 
 dev:
 	docker compose up --build
@@ -18,7 +18,13 @@ clean:
 	docker compose down -v
 
 seed:
-	docker compose exec backend python -m scripts.seed
+	docker compose exec backend python /opt/knowledge-graph/seed.py
+
+seed-reset:
+	docker compose exec backend python /opt/knowledge-graph/seed.py --reset
+
+verify-graph:
+	docker compose exec backend python /opt/knowledge-graph/verify.py
 
 test:
 	docker compose exec backend pytest tests/ -v
@@ -27,11 +33,10 @@ shell:
 	docker compose exec backend bash
 
 psql:
-	docker compose exec postgres psql -U epic -d industrial_brain
+	docker compose exec postgres sh -lc 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
 neo4j-shell:
 	@echo "Open http://localhost:7474 in your browser to access Neo4j"
 
 setup:
-	@if [ ! -f .env ]; then cp .env.example .env; echo "Created .env from .env.example"; else echo ".env already exists"; fi
-	$(MAKE) dev
+	./scripts/setup_dev.sh

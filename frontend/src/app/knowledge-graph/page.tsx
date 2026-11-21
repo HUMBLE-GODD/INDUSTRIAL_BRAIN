@@ -9,10 +9,7 @@ import {
   ZoomOut,
   Maximize2,
   Cpu,
-  Shield,
-  Users,
   Building,
-  RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -32,16 +29,16 @@ export default function KnowledgeGraphPage() {
     const matchesGroup = selectedGroup === "all" || n.group === selectedGroup;
     return matchesSearch && matchesGroup;
   });
+  const inspectedNode =
+    filteredNodes.find((node) => node.id === selectedNode?.id) ??
+    filteredNodes[0] ??
+    null;
 
   const getGroupIcon = (type: string) => {
     switch (type) {
       case "Equipment":
       case "Component":
         return <Cpu className="w-4 h-4 text-cyan-400" />;
-      case "Regulation":
-        return <Shield className="w-4 h-4 text-emerald-400" />;
-      case "Team":
-        return <Users className="w-4 h-4 text-purple-400" />;
       case "Supplier":
         return <Building className="w-4 h-4 text-amber-400" />;
       default:
@@ -53,13 +50,10 @@ export default function KnowledgeGraphPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Knowledge Graph Explorer"
-        description="Explore multi-hop relationships between industrial assets, maintenance teams, telemetry sensors, and compliance policies."
-        badge={<Badge variant="Healthy" dot>Graph Topology Active</Badge>}
+        description="Explore the local seed graph for equipment, components, suppliers, locations, and failure modes."
+        badge={<Badge variant="Info" dot>Local Seed Data</Badge>}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" icon={<RefreshCw className="w-3.5 h-3.5" />}>
-              Sync Graph
-            </Button>
             <Button variant="outline" size="sm" icon={<Maximize2 className="w-3.5 h-3.5" />}>
               Fullscreen
             </Button>
@@ -71,19 +65,19 @@ export default function KnowledgeGraphPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-3.5">
           <div className="text-[11px] text-slate-400 uppercase font-semibold">Total Entities</div>
-          <div className="text-xl font-bold text-white mt-1">1,420</div>
+          <div className="text-xl font-bold text-white mt-1">{mockGraphData.stats.totalEntities}</div>
         </div>
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-3.5">
           <div className="text-[11px] text-slate-400 uppercase font-semibold">Relationships</div>
-          <div className="text-xl font-bold text-cyan-400 mt-1">3,890</div>
+          <div className="text-xl font-bold text-cyan-400 mt-1">{mockGraphData.stats.totalRelationships}</div>
         </div>
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-3.5">
-          <div className="text-[11px] text-slate-400 uppercase font-semibold">Asset Clusters</div>
-          <div className="text-xl font-bold text-purple-400 mt-1">14</div>
+          <div className="text-[11px] text-slate-400 uppercase font-semibold">Equipment Records</div>
+          <div className="text-xl font-bold text-purple-400 mt-1">{mockGraphData.stats.equipmentCount}</div>
         </div>
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-3.5">
-          <div className="text-[11px] text-slate-400 uppercase font-semibold">Graph Latency</div>
-          <div className="text-xl font-bold text-emerald-400 mt-1">12 ms</div>
+          <div className="text-[11px] text-slate-400 uppercase font-semibold">Data Source</div>
+          <div className="text-xl font-bold text-emerald-400 mt-1">{mockGraphData.stats.dataSource}</div>
         </div>
       </div>
 
@@ -100,14 +94,14 @@ export default function KnowledgeGraphPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search nodes (e.g. Pump P-101)..."
+                placeholder="Search nodes (e.g. EQ-001)..."
                 className="w-full bg-[#11192d] text-slate-200 placeholder-slate-500 text-xs rounded-lg pl-8 pr-3 py-1.5 border border-slate-700/80 focus:outline-none focus:border-cyan-500"
               />
             </div>
 
             {/* Filter Buttons */}
             <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
-              {["all", "pumps", "motors", "sensors", "compliance"].map((grp) => (
+              {["all", "equipment", "components", "suppliers", "locations", "failure-modes"].map((grp) => (
                 <button
                   key={grp}
                   onClick={() => setSelectedGroup(grp)}
@@ -148,13 +142,19 @@ export default function KnowledgeGraphPage() {
 
             {/* Center Graph Node Elements */}
             <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-xl w-full">
-              {filteredNodes.map((node) => {
+              {filteredNodes.length === 0 ? (
+                <p className="col-span-full rounded-xl border border-slate-700 bg-[#0f172a]/90 p-4 text-center text-xs text-slate-400">
+                  No graph nodes match this search and filter.
+                </p>
+              ) : filteredNodes.map((node) => {
                 const isSelected = selectedNode?.id === node.id;
                 return (
-                  <div
+                  <button
                     key={node.id}
+                    type="button"
                     onClick={() => setSelectedNode(node)}
-                    className={`cursor-pointer p-3.5 rounded-xl border backdrop-blur-md transition-all duration-200 flex items-center gap-3 ${
+                    aria-pressed={isSelected}
+                    className={`cursor-pointer text-left p-3.5 rounded-xl border backdrop-blur-md transition-all duration-200 flex items-center gap-3 ${
                       isSelected
                         ? "bg-cyan-950/60 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)] scale-105"
                         : "bg-[#0f172a]/90 border-slate-700/80 hover:border-slate-500 hover:bg-[#151f38]"
@@ -171,7 +171,7 @@ export default function KnowledgeGraphPage() {
                         {node.type}
                       </div>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -188,26 +188,26 @@ export default function KnowledgeGraphPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {selectedNode ? (
+            {inspectedNode ? (
               <div className="space-y-4 text-xs">
                 <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
                   <div className="text-slate-400 text-[10px] uppercase font-semibold">
-                    Node ID: #{selectedNode.id}
+                    Node ID: {inspectedNode.id}
                   </div>
                   <div className="text-base font-bold text-white">
-                    {selectedNode.label}
+                    {inspectedNode.label}
                   </div>
                   <Badge
                     variant={
-                      selectedNode.status === "Critical"
+                      inspectedNode.status === "critical severity" || inspectedNode.status === "high severity"
                         ? "Critical"
-                        : selectedNode.status === "Warning"
+                        : inspectedNode.status === "maintenance"
                         ? "Warning"
                         : "Healthy"
                     }
                     size="sm"
                   >
-                    Status: {selectedNode.status}
+                    Status: {inspectedNode.status}
                   </Badge>
                 </div>
 
@@ -219,8 +219,8 @@ export default function KnowledgeGraphPage() {
                     {mockGraphData.links
                       .filter(
                         (l) =>
-                          l.source === selectedNode.id ||
-                          l.target === selectedNode.id
+                          l.source === inspectedNode.id ||
+                          l.target === inspectedNode.id
                       )
                       .map((link, idx) => (
                         <div
@@ -231,7 +231,7 @@ export default function KnowledgeGraphPage() {
                             {link.label}
                           </span>
                           <span className="text-cyan-400">
-                            Node #{link.source === selectedNode.id ? link.target : link.source}
+                            Node {link.source === inspectedNode.id ? link.target : link.source}
                           </span>
                         </div>
                       ))}
@@ -239,7 +239,7 @@ export default function KnowledgeGraphPage() {
                 </div>
 
                 <Button variant="primary" size="sm" className="w-full mt-4">
-                  Run GraphRAG Diagnostics
+                  Inspect Seed Relationships
                 </Button>
               </div>
             ) : (

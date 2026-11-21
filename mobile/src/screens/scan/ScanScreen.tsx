@@ -1,21 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography } from '../../theme';
 import { Card } from '../../components/ui/Card';
+import { DEMO_EQUIPMENT } from '../../data/equipment';
 
 export default function ScanScreen() {
+  const navigation = useNavigation<any>();
+  const [equipmentId, setEquipmentId] = useState('');
+  const [lookupError, setLookupError] = useState('');
+
+  const lookupEquipment = () => {
+    const normalizedId = equipmentId.trim().toUpperCase();
+    const equipment = DEMO_EQUIPMENT.find((item) => item.id === normalizedId);
+
+    if (!equipment) {
+      setLookupError(normalizedId ? `No equipment found for “${normalizedId}”.` : 'Enter an equipment ID to continue.');
+      return;
+    }
+
+    setLookupError('');
+    Keyboard.dismiss();
+    navigation.navigate('EquipmentDetail', { equipmentId: equipment.id, name: equipment.name });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>QR Scanner</Text>
-        <Text style={styles.subtitle}>Scan equipment QR codes for instant lookup</Text>
+        <Text style={styles.subtitle}>Local demo lookup · use a canonical equipment ID</Text>
 
-        {/* Camera placeholder */}
+        {/* Camera scanning is not configured in this client yet. */}
         <Card style={styles.cameraPlaceholder}>
           <Text style={styles.cameraIcon}>📷</Text>
-          <Text style={styles.cameraText}>Camera Preview</Text>
-          <Text style={styles.cameraHint}>Point at an equipment QR code</Text>
+          <Text style={styles.cameraText}>Camera scanning unavailable</Text>
+          <Text style={styles.cameraHint}>Enter an equipment ID below to open its record.</Text>
           <View style={styles.scanFrame}>
             <View style={[styles.corner, styles.topLeft]} />
             <View style={[styles.corner, styles.topRight]} />
@@ -24,10 +44,39 @@ export default function ScanScreen() {
           </View>
         </Card>
 
+        <Text style={styles.lookupLabel}>Manual lookup</Text>
+        <View style={styles.lookupRow}>
+          <TextInput
+            accessibilityLabel="Equipment ID"
+            style={styles.lookupInput}
+            placeholder="e.g. EQ-001"
+            placeholderTextColor={colors.textMuted}
+            value={equipmentId}
+            onChangeText={(value) => {
+              setEquipmentId(value);
+              if (lookupError) setLookupError('');
+            }}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            returnKeyType="go"
+            onSubmitEditing={lookupEquipment}
+          />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Look up equipment"
+            style={styles.lookupButton}
+            activeOpacity={0.75}
+            onPress={lookupEquipment}
+          >
+            <Text style={styles.lookupButtonText}>Look up</Text>
+          </TouchableOpacity>
+        </View>
+        {lookupError ? <Text accessibilityRole="alert" style={styles.lookupError}>{lookupError}</Text> : null}
+
         <Text style={styles.instructions}>
-          Position the QR code within the frame to automatically detect and look up equipment information.
+          Try EQ-001 through EQ-005. Asset labels such as P-101 are shown in equipment details.
         </Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -38,8 +87,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    flex: 1,
     padding: spacing.lg,
+    paddingBottom: spacing.huge,
   },
   title: {
     ...typography.h1,
@@ -52,8 +101,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
   },
   cameraPlaceholder: {
-    flex: 1,
-    maxHeight: 400,
+    height: 280,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surfaceLight,
@@ -71,6 +119,8 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textMuted,
     marginTop: spacing.sm,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
   },
   scanFrame: {
     position: 'absolute',
@@ -113,5 +163,43 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xl,
     paddingHorizontal: spacing.xl,
+  },
+  lookupLabel: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
+  },
+  lookupRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  lookupInput: {
+    flex: 1,
+    minHeight: 48,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    ...typography.body,
+    color: colors.text,
+  },
+  lookupButton: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+  },
+  lookupButtonText: {
+    ...typography.button,
+    color: colors.background,
+  },
+  lookupError: {
+    ...typography.caption,
+    color: colors.danger,
+    marginTop: spacing.sm,
   },
 });

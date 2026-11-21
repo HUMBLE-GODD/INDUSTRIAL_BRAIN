@@ -5,8 +5,10 @@ Quick verification script.
 Runs after seed.py to confirm the graph has the expected shape.
 
 Run:
-    python knowledge_graph/verify.py
+    python verify.py
 """
+
+import sys
 
 from graph_service import GraphService
 from rich.console import Console
@@ -24,13 +26,15 @@ CHECKS = [
     ("HAS_COMPONENT relationships",    "MATCH ()-[r:HAS_COMPONENT]->() RETURN count(r) AS c", 12),
     ("SUPPLIED_BY relationships",      "MATCH ()-[r:SUPPLIED_BY]->()   RETURN count(r) AS c", 12),
     ("LOCATED_AT relationships",       "MATCH ()-[r:LOCATED_AT]->()    RETURN count(r) AS c", 5),
-    ("PRONE_TO relationships",         "MATCH ()-[r:PRONE_TO]->()      RETURN count(r) AS c", 7),
+    ("PRONE_TO relationships",         "MATCH ()-[r:PRONE_TO]->()      RETURN count(r) AS c", 8),
     ("SIMILAR_TO relationships",       "MATCH ()-[r:SIMILAR_TO]->()    RETURN count(r) AS c", 2),
     ("EpsilonValves supplies 3+ parts","MATCH (:Supplier {name:'EpsilonValves Ltd'})<-[:SUPPLIED_BY]-(c) RETURN count(c) AS c", 3),
+    ("EpsilonValves parts linked to failures", "MATCH (:Supplier {name:'EpsilonValves Ltd'})<-[:SUPPLIED_BY]-(c)-[:PRONE_TO]->(:FailureMode) RETURN count(DISTINCT c) AS c", 3),
+    ("High/critical EpsilonValves failure links", "MATCH (:Supplier {name:'EpsilonValves Ltd'})<-[:SUPPLIED_BY]-(c)-[:PRONE_TO]->(fm:FailureMode) WHERE fm.severity IN ['high', 'critical'] RETURN count(DISTINCT c) AS c", 2),
 ]
 
 
-def run_verification(svc: GraphService) -> None:
+def run_verification(svc: GraphService) -> bool:
     console.rule("[bold cyan]Graph Verification[/bold cyan]")
     passed = 0
     failed = 0
@@ -54,8 +58,9 @@ def run_verification(svc: GraphService) -> None:
         console.print("[bold green]\n  All checks passed! Graph is correctly seeded.[/bold green]")
     else:
         console.print("[bold red]\n  Some checks failed. Re-run seed.py to fix.[/bold red]")
+    return failed == 0
 
 
 if __name__ == "__main__":
     with GraphService() as svc:
-        run_verification(svc)
+        sys.exit(0 if run_verification(svc) else 1)

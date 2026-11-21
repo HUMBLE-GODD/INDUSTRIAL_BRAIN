@@ -3,6 +3,9 @@
 **Project**: AI-powered Industrial Knowledge Management & Decision Support System
 **Goal**: Build a unified platform that ingests industrial documents, constructs a Knowledge Graph, performs intelligent RAG-based Q&A, root cause analysis, predictive maintenance, and compliance monitoring — with both a Web Dashboard and Mobile App.
 
+> [!NOTE]
+> This is the target architecture, not a statement that every listed subsystem exists today. The current implementation is a prototype. The six scoped work packages and the measurable supervisor-demo milestone are in [`team_assignments/`](team_assignments/) and the root `README.md`.
+
 ---
 
 ## Table of Contents

@@ -2,12 +2,13 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.db.session import get_engine
 from app.db.neo4j import get_neo4j_driver, close_neo4j_driver
-from app.db.qdrant import get_qdrant_client, init_qdrant
+from app.db.qdrant import close_qdrant_client, get_qdrant_client, init_qdrant
 from app.api.v1 import api_router
 
 logger = logging.getLogger(__name__)
@@ -37,22 +38,27 @@ async def lifespan(app: FastAPI):
         
     # Test Qdrant and ensure vector collection
     try:
-        qdrant_client = get_qdrant_client()
-        await qdrant_client.get_collections()
         await init_qdrant(vector_size=settings.EMBEDDING_DIMENSION)
         logger.info("Qdrant connected successfully.")
     except Exception as e:
         logger.error(f"Qdrant connection failed: {e}")
         
-    yield
-    
-    logger.info("Shutting down Industrial Brain API...")
-    await close_neo4j_driver()
     try:
-        engine = get_engine()
-        await engine.dispose()
-    except Exception as e:
-        logger.error(f"Error disposing DB engine: {e}")
+        yield
+    finally:
+        logger.info("Shutting down Industrial Brain API...")
+        try:
+            await close_qdrant_client()
+        except Exception as e:
+            logger.error("Error closing Qdrant client: %s", e)
+        try:
+            await close_neo4j_driver()
+        except Exception as e:
+            logger.error("Error closing Neo4j driver: %s", e)
+        try:
+            await get_engine().dispose()
+        except Exception as e:
+            logger.error("Error disposing DB engine: %s", e)
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -63,7 +69,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin.strip() for origin in settings.CORS_ORIGINS.split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,7 +85,7 @@ async def health_check():
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
             db_status = "connected"
-    except:
+    except Exception:
         pass
 
     neo4j_status = "disconnected"
@@ -87,7 +93,7 @@ async def health_check():
         neo4j_driver = get_neo4j_driver()
         await neo4j_driver.verify_connectivity()
         neo4j_status = "connected"
-    except:
+    except Exception:
         pass
 
     qdrant_status = "disconnected"
@@ -95,18 +101,23 @@ async def health_check():
         qdrant_client = get_qdrant_client()
         await qdrant_client.get_collections()
         qdrant_status = "connected"
-    except:
+    except Exception:
         pass
 
-    return {
-        "status": "ok",
-        "version": settings.VERSION,
-        "services": {
-            "database": db_status,
-            "neo4j": neo4j_status,
-            "qdrant": qdrant_status
-        }
+    services = {
+        "database": db_status,
+        "neo4j": neo4j_status,
+        "qdrant": qdrant_status,
     }
+    healthy = all(status == "connected" for status in services.values())
+    return JSONResponse(
+        status_code=200 if healthy else 503,
+        content={
+            "status": "ok" if healthy else "degraded",
+            "version": settings.VERSION,
+            "services": services,
+        },
+    )
 
 @app.websocket("/ws/events")
 async def websocket_endpoint(websocket: WebSocket):

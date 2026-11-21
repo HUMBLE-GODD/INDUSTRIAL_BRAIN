@@ -1,21 +1,21 @@
 # Knowledge Graph - M3 Phase 1
 
 Neo4j-based knowledge graph for the Industrial Brain project.
-One folder. Zero dependencies outside Python + Docker.
+The standalone demo needs Docker and the Python dependencies in `requirements.txt`.
 
 ---
 
 ## Folder Structure
 
 ```
-knowledge_graph/
+Knowledge Graph Setup/
 ├── graph_service.py     <- Reusable CRUD service class (import this everywhere)
 ├── seed.py              <- Populates Neo4j with 5 equipment + full relationships
 ├── verify.py            <- Checks all nodes/relationships are correctly created
 ├── demo.py              <- Live demo of the GraphService API
 ├── docker-compose.yml   <- Starts Neo4j with one command
 ├── requirements.txt     <- Python dependencies
-├── .env.example         <- Copy to .env and fill in your password
+├── .env.example         <- Copy to .env for local credentials
 └── README.md            <- You are here
 ```
 
@@ -23,19 +23,21 @@ knowledge_graph/
 
 ## Quick Start (3 steps)
 
+Use this standalone stack when the root `docker compose` stack is not running; both stacks use the same local Neo4j ports.
+
 ### Step 1 - Start Neo4j
 ```bash
-cd knowledge_graph
+cd "Knowledge Graph Setup"
 docker compose up -d
 ```
 Neo4j Browser -> http://localhost:7474
-Login: neo4j / changeme123 (or whatever you set in .env)
+Login: neo4j / industrial_brain_neo4j (or the password you set in `.env`)
 
 ### Step 2 - Install Python deps and configure env
 ```bash
-pip install -r requirements.txt
-copy .env.example .env
-# then open .env and set your password
+python -m pip install -r requirements.txt
+cp .env.example .env
+# Edit .env if you want a different Neo4j password.
 ```
 
 ### Step 3 - Seed and Verify
@@ -44,6 +46,8 @@ python seed.py      # populates the graph
 python verify.py    # confirms everything is correct
 python demo.py      # optional: interactive API walkthrough
 ```
+
+Seeding is safe to repeat and merges the sample records. To clear the graph first, use `python seed.py --reset` only with a dedicated demo database. The root Compose stack also exposes `make seed` and `make verify-graph`.
 
 ---
 
@@ -125,8 +129,8 @@ Also seeded: 12 Components, 5 Failure Modes, 3 Locations
 ## Hidden Failure Pattern
 
 EpsilonValves Ltd (SUP-005, rating 2.9) supplies components across
-3 different equipment - and every one of those components is linked
-to a high or critical severity failure mode:
+3 different equipment. All three components are linked to failure modes,
+including two high/critical risks and one medium-severity risk:
 
   - CMP-005  Shell Gasket on HX-202      -> Seal Leakage (high)
   - CMP-006  Inlet Valve on C-305        -> Valve Sticking (medium)
@@ -195,6 +199,7 @@ with GraphService() as svc:
 - [x] Suppliers, locations, and failure modes seeded
 - [x] Hidden failure pattern built in (EpsilonValves on 3 equipment)
 - [x] Reusable GraphService class with full CRUD for nodes and relationships
-- [x] verify.py checks 11 assertions - all must pass
+- [x] Repeatable seed script merges demo records without clearing the graph by default
+- [x] verify.py checks 13 assertions and exits nonzero if any fail
 - [x] demo.py shows live API usage
 - [x] docker-compose.yml for zero-config local setup

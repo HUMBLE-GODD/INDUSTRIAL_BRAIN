@@ -5,6 +5,7 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { DEMO_EQUIPMENT } from '../../data/equipment';
 
 type RouteParams = {
   EquipmentDetail: { equipmentId: string; name: string };
@@ -13,55 +14,52 @@ type RouteParams = {
 export default function EquipmentDetailScreen() {
   const route = useRoute<RouteProp<RouteParams, 'EquipmentDetail'>>();
   const { equipmentId, name } = route.params;
+  const equipment = DEMO_EQUIPMENT.find((item) => item.id === equipmentId);
+  const healthColor = equipment
+    ? equipment.demoHealthScore < 40
+      ? colors.danger
+      : equipment.demoHealthScore < 70
+        ? colors.warning
+        : colors.success
+    : colors.textMuted;
 
-  // Mock data for this equipment
-  const equipment = {
-    id: equipmentId,
-    name,
-    type: 'Centrifugal Pump',
-    location: 'Unit-1',
-    manufacturer: 'Siemens',
-    installDate: '2019-06-15',
-    criticality: 'Critical',
-    health: 34,
-    rul: 18,
-    lastMaintenance: '2024-12-10',
-    components: ['Bearing', 'Seal', 'Impeller', 'Motor Coupling'],
-    recentFailures: [
-      { date: '2024-11-28', mode: 'Bearing failure', downtime: '8 hrs' },
-      { date: '2024-08-15', mode: 'Seal leak', downtime: '4 hrs' },
-    ],
-  };
-
-  const healthColor = equipment.health < 40 ? colors.danger : equipment.health < 70 ? colors.warning : colors.success;
+  const equipmentInfo = [
+    ['Equipment ID', equipment?.id ?? equipmentId],
+    ['Asset Tag', equipment?.tag ?? name],
+    ['Type', equipment?.type ?? 'Not available'],
+    ['Location', equipment?.location ?? 'Not available'],
+    ['Manufacturer', equipment?.manufacturer ?? 'Not available'],
+    ['Model', equipment?.model ?? 'Not available'],
+    ['Installed', equipment?.installDate ?? 'Not available'],
+    ['Status', equipment?.status === 'maintenance' ? 'Maintenance' : equipment?.status === 'operational' ? 'Operational' : 'Not available'],
+    ['Criticality', equipment?.criticality ? equipment.criticality[0].toUpperCase() + equipment.criticality.slice(1) : 'Not available'],
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Health Score */}
         <Card style={styles.healthCard}>
-          <Text style={styles.healthLabel}>Health Score</Text>
-          <Text style={[styles.healthValue, { color: healthColor }]}>{equipment.health}%</Text>
-          <View style={styles.healthBarBg}>
-            <View style={[styles.healthBarFill, { width: `${equipment.health}%`, backgroundColor: healthColor }]} />
-          </View>
-          <Text style={styles.rulText}>
-            Estimated RUL: <Text style={{ color: colors.warning, fontWeight: '700' }}>{equipment.rul} cycles</Text>
+          <Text style={styles.healthLabel}>Demo Health Score</Text>
+          <Text style={[styles.healthValue, { color: healthColor }]}>
+            {equipment ? `${equipment.demoHealthScore}%` : 'N/A'}
           </Text>
+          <View style={styles.healthBarBg}>
+            <View
+              style={[
+                styles.healthBarFill,
+                {
+                  width: `${equipment?.demoHealthScore ?? 0}%`,
+                  backgroundColor: healthColor,
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.demoNote}>Illustrative local value, not an API measurement</Text>
         </Card>
 
-        {/* Details */}
         <Text style={styles.sectionTitle}>Equipment Info</Text>
         <Card style={styles.infoCard}>
-          {[
-            ['ID', equipment.id],
-            ['Type', equipment.type],
-            ['Location', equipment.location],
-            ['Manufacturer', equipment.manufacturer],
-            ['Installed', equipment.installDate],
-            ['Criticality', equipment.criticality],
-            ['Last Maintenance', equipment.lastMaintenance],
-          ].map(([label, value], i) => (
+          {equipmentInfo.map(([label, value], i) => (
             <View key={i} style={styles.infoRow}>
               <Text style={styles.infoLabel}>{label}</Text>
               <Text style={styles.infoValue}>{value}</Text>
@@ -69,27 +67,25 @@ export default function EquipmentDetailScreen() {
           ))}
         </Card>
 
-        {/* Components */}
-        <Text style={styles.sectionTitle}>Components</Text>
+        <Text style={styles.sectionTitle}>Seeded Components</Text>
         <View style={styles.tagsRow}>
-          {equipment.components.map((comp, i) => (
-            <View key={i} style={styles.tag}>
-              <Text style={styles.tagText}>{comp}</Text>
+          {equipment?.components.length ? equipment.components.map((component) => (
+            <View key={component} style={styles.tag}>
+              <Text style={styles.tagText}>{component}</Text>
             </View>
-          ))}
+          )) : <Text style={styles.noData}>No seeded component links available.</Text>}
         </View>
 
-        {/* Recent Failures */}
-        <Text style={styles.sectionTitle}>Recent Failures</Text>
-        {equipment.recentFailures.map((failure, i) => (
-          <Card key={i} style={styles.failureCard}>
+        <Text style={styles.sectionTitle}>Linked Failure Modes</Text>
+        {equipment?.failureModes.length ? equipment.failureModes.map((failureMode) => (
+          <Card key={failureMode.name} style={styles.failureCard}>
             <View style={styles.failureHeader}>
-              <Text style={styles.failureMode}>{failure.mode}</Text>
-              <Badge severity="critical" />
+              <Text style={styles.failureMode}>{failureMode.name}</Text>
+              <Badge severity={failureMode.severity} />
             </View>
-            <Text style={styles.failureDetail}>Date: {failure.date}  •  Downtime: {failure.downtime}</Text>
+            <Text style={styles.failureDetail}>Linked from the local seed component relationships.</Text>
           </Card>
-        ))}
+        )) : <Text style={styles.noData}>No seeded failure links available.</Text>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -131,9 +127,10 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
-  rulText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  demoNote: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
   sectionTitle: {
     ...typography.h3,
@@ -197,5 +194,10 @@ const styles = StyleSheet.create({
   failureDetail: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  noData: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    marginBottom: spacing.xxl,
   },
 });

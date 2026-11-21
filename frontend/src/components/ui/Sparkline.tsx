@@ -1,5 +1,5 @@
-import React from "react";
-import { cn } from "@/lib/utils";
+import { useId } from "react";
+import { cn } from "@/utils";
 
 export interface SparklineProps {
   data: number[];
@@ -18,6 +18,7 @@ export function Sparkline({
   className,
   showFill = true,
 }: SparklineProps) {
+  const reactId = useId().replaceAll(":", "");
   if (!data || data.length < 2) return null;
 
   const min = Math.min(...data);
@@ -88,7 +89,7 @@ export function Sparkline({
   };
 
   const theme = colorConfig[color];
-  const gradientId = `sparkline-grad-${color}-${Math.random().toString(36).substring(2, 7)}`;
+  const gradientId = `sparkline-grad-${color}-${reactId}`;
 
   return (
     <div className={cn("w-full overflow-hidden", className)}>

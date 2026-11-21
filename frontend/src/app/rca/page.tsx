@@ -14,9 +14,10 @@ import { Badge } from "@/components/ui/Badge";
 import { mockRcaData } from "@/data/mockData";
 
 export default function RcaPage() {
-  const [selectedEq, setSelectedEq] = useState(mockRcaData.equipmentList[0]);
+  const [selectedEq, setSelectedEq] = useState<string>(mockRcaData.equipmentList[0].id);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const rcaResult = mockRcaData.sampleRca;
+  const selectedEquipment = mockRcaData.equipmentList.find((equipment) => equipment.id === selectedEq);
 
   const handleAnalyze = () => {
     setIsAnalyzing(true);
@@ -29,8 +30,8 @@ export default function RcaPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Root Cause Analysis (RCA)"
-        description="Automated causal decomposition combining sensor anomaly traces, maintenance histories, and operating standard operating procedures."
-        badge={<Badge variant="Critical" dot>Diagnostic Engine Ready</Badge>}
+        description="Review the local sample RCA case for Pump P-101 (EQ-001)."
+        badge={<Badge variant="Info" dot>Local Demo Sample</Badge>}
       />
 
       {/* Equipment Selector & Trigger Bar */}
@@ -45,9 +46,9 @@ export default function RcaPage() {
               onChange={(e) => setSelectedEq(e.target.value)}
               className="bg-[#11192d] border border-slate-700/80 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 w-full sm:w-64"
             >
-              {mockRcaData.equipmentList.map((eq) => (
-                <option key={eq} value={eq}>
-                  {eq}
+              {mockRcaData.equipmentList.map((equipment) => (
+                <option key={equipment.id} value={equipment.id}>
+                  {equipment.id} · {equipment.name}
                 </option>
               ))}
             </select>
@@ -60,7 +61,7 @@ export default function RcaPage() {
             isLoading={isAnalyzing}
             onClick={handleAnalyze}
           >
-            Run RCA Diagnostics
+            View Local Sample
           </Button>
         </div>
       </Card>
@@ -74,9 +75,11 @@ export default function RcaPage() {
         </div>
 
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4">
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Target Asset</span>
-          <div className="text-base font-bold text-cyan-400 mt-1">{selectedEq}</div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Hydraulic Booster Circuit #2</div>
+          <span className="text-[10px] text-slate-400 uppercase font-semibold">Selected Seed Asset</span>
+          <div className="text-base font-bold text-cyan-400 mt-1">{selectedEquipment?.name}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">
+            {selectedEq}; RCA sample below is for {rcaResult.targetEquipment} ({rcaResult.targetEquipmentId}).
+          </div>
         </div>
 
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4">

@@ -18,11 +18,11 @@ export default function CompliancePage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Regulatory Compliance & Audit Framework"
-        description="Automated cross-checking against ISO 45001, OSHA 1910, and safety instrumented systems standards."
-        badge={<Badge variant="Healthy" dot>91% Compliant</Badge>}
+        description="Illustrative local compliance scores and findings; no live audit or standards scan is connected."
+        badge={<Badge variant="Info" dot>Local Demo Data</Badge>}
         actions={
           <Button variant="primary" size="sm" icon={<FileCheck className="w-4 h-4" />}>
-            Run Audit Scan
+            View Sample Findings
           </Button>
         }
       />

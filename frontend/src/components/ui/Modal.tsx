@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { Button } from "./Button";
 
 export interface ModalProps {
@@ -53,6 +53,10 @@ export function Modal({
 
       {/* Modal Dialog */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        aria-describedby={description ? "modal-description" : undefined}
         className={cn(
           "relative w-full rounded-2xl bg-[#0f172a] border border-slate-700/70 p-6 shadow-2xl z-10 animate-in zoom-in-95 duration-200 text-slate-100",
           maxWidthClasses[maxWidth]
@@ -61,13 +65,14 @@ export function Modal({
         {/* Header */}
         <div className="flex items-start justify-between pb-4 border-b border-slate-800">
           <div>
-            <h2 className="text-lg font-semibold text-white tracking-tight">{title}</h2>
+            <h2 id="modal-title" className="text-lg font-semibold text-white tracking-tight">{title}</h2>
             {description && (
-              <p className="text-xs text-slate-400 mt-1">{description}</p>
+              <p id="modal-description" className="text-xs text-slate-400 mt-1">{description}</p>
             )}
           </div>
           <button
             onClick={onClose}
+            aria-label={`Close ${title}`}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />

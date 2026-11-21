@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -29,15 +30,16 @@ const INITIAL_MESSAGES: Message[] = [
 ];
 
 const SUGGESTED_QUESTIONS = [
-  'What is the status of Pump P-101?',
-  'Which supplier has the most part failures?',
-  'Show overdue inspections',
-  'What caused the last compressor failure?',
+  'Which components belong to Pump P-101?',
+  'What failure mode is linked to Conveyor CB-410?',
+  'Which supplier provides the Boiler BLR-501 safety valve?',
+  'Why is Compressor C-305 in maintenance?',
 ];
 
 export default function QueryScreen() {
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
+  const messageListRef = useRef<FlatList<Message>>(null);
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
@@ -51,7 +53,7 @@ export default function QueryScreen() {
 
     const aiMsg: Message = {
       id: (Date.now() + 1).toString(),
-      text: `Based on the knowledge graph and maintenance records, I can help you with "${text.trim()}". This feature will provide real-time answers powered by GraphRAG once the backend is connected.`,
+      text: `Local demo only — live GraphRAG answers are not connected yet. Your question was: "${text.trim()}"`,
       sender: 'ai',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
@@ -80,16 +82,18 @@ export default function QueryScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Ask AI</Text>
-          <Text style={styles.subtitle}>Powered by GraphRAG + Gemini</Text>
+          <Text style={styles.subtitle}>Local demo · AI service not connected</Text>
         </View>
 
         {/* Messages */}
         <FlatList
+          ref={messageListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => messageListRef.current?.scrollToEnd({ animated: true })}
           ListFooterComponent={
             messages.length <= 1 ? (
               <View style={styles.suggestionsContainer}>
@@ -106,7 +110,12 @@ export default function QueryScreen() {
 
         {/* Input */}
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.micButton}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Voice input is not available"
+            style={styles.micButton}
+            onPress={() => Alert.alert('Voice input', 'Voice input is not available yet. Type your question instead.')}
+          >
             <Text style={styles.micIcon}>🎤</Text>
           </TouchableOpacity>
           <TextInput

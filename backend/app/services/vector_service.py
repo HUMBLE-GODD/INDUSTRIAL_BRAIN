@@ -37,15 +37,18 @@ class VectorService:
         if len(texts) != len(vectors):
             raise ValueError("texts and vectors must have the same length.")
 
-        point_ids = ids or [str(uuid.uuid4()) for _ in texts]
+        if payloads is not None and len(payloads) != len(texts):
+            raise ValueError("payloads length must match texts length when provided.")
+
+        point_ids = list(ids) if ids is not None else [str(uuid.uuid4()) for _ in texts]
         if len(point_ids) != len(texts):
             raise ValueError("ids length must match texts length when provided.")
 
         point_payloads: list[dict[str, Any]] = []
         for index, text in enumerate(texts):
-            payload = {"text": text}
-            if payloads:
-                payload.update(payloads[index])
+            payload = dict(payloads[index]) if payloads is not None else {}
+            # Keep the stored text in sync with the text used to create this point.
+            payload["text"] = text
             point_payloads.append(payload)
 
         points = [
@@ -62,6 +65,9 @@ class VectorService:
         query_vector: list[float],
         limit: int = 10,
     ) -> list[ScoredPoint]:
+        if limit <= 0:
+            raise ValueError("limit must be a positive integer.")
+
         client = get_qdrant_client()
         response = await client.query_points(
             collection_name=self.collection_name,

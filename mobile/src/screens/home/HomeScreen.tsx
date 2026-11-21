@@ -1,23 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography } from '../../theme';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 
 export default function HomeScreen() {
+  const navigation = useNavigation<any>();
   const stats = [
-    { label: 'Total Equipment', value: '50', color: colors.primary },
-    { label: 'Active Alerts', value: '7', color: colors.danger },
-    { label: 'Health Score', value: '78%', color: colors.success },
-    { label: 'Pending Tasks', value: '12', color: colors.warning },
+    { label: 'Demo Equipment', value: '5', color: colors.primary },
+    { label: 'Demo Alerts', value: '5', color: colors.danger },
+    { label: 'Demo Health', value: '75%', color: colors.success },
+    { label: 'In Maintenance', value: '1', color: colors.warning },
   ];
 
   const recentAlerts = [
-    { id: '1', title: 'Pump P-101 — Bearing Vibration High', severity: 'critical' as const, time: '5 min ago' },
-    { id: '2', title: 'Compressor C-205 — Overheating Warning', severity: 'high' as const, time: '23 min ago' },
-    { id: '3', title: 'Motor M-301 — Scheduled Maintenance Due', severity: 'medium' as const, time: '1 hr ago' },
-    { id: '4', title: 'Heat Exchanger HX-102 — Inspection Passed', severity: 'low' as const, time: '3 hrs ago' },
+    { id: 'EQ-001', title: 'Pump P-101 — Bearing Overheating', severity: 'critical' as const, time: 'Local sample' },
+    { id: 'EQ-002', title: 'Heat Exchanger HX-202 — Seal Leakage', severity: 'high' as const, time: 'Local sample' },
+    { id: 'EQ-003', title: 'Compressor C-305 — Valve Sticking', severity: 'medium' as const, time: 'Local sample' },
+    { id: 'EQ-004', title: 'Conveyor CB-410 — Belt Slippage', severity: 'low' as const, time: 'Local sample' },
+    { id: 'EQ-005', title: 'Boiler BLR-501 — Pressure Buildup', severity: 'critical' as const, time: 'Local sample' },
   ];
 
   return (
@@ -27,6 +30,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.greeting}>Good Evening 👋</Text>
           <Text style={styles.title}>Industrial Brain</Text>
+          <Text style={styles.demoNote}>Local demo data · equipment identities mirror the graph seed</Text>
         </View>
 
         {/* KPI Cards */}
@@ -40,7 +44,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Recent Alerts */}
-        <Text style={styles.sectionTitle}>Recent Alerts</Text>
+        <Text style={styles.sectionTitle}>Demo Alerts</Text>
         {recentAlerts.map((alert) => (
           <Card key={alert.id} style={styles.alertCard}>
             <View style={styles.alertRow}>
@@ -56,18 +60,42 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionsRow}>
-          <Card style={styles.actionCard}>
-            <Text style={styles.actionEmoji}>📷</Text>
-            <Text style={styles.actionLabel}>Scan QR</Text>
-          </Card>
-          <Card style={styles.actionCard}>
-            <Text style={styles.actionEmoji}>🤖</Text>
-            <Text style={styles.actionLabel}>Ask AI</Text>
-          </Card>
-          <Card style={styles.actionCard}>
-            <Text style={styles.actionEmoji}>📋</Text>
-            <Text style={styles.actionLabel}>Work Orders</Text>
-          </Card>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Open QR scanner"
+            activeOpacity={0.75}
+            onPress={() => navigation.getParent()?.navigate('ScanTab')}
+            style={styles.actionTouchTarget}
+          >
+            <Card style={styles.actionCard}>
+              <Text style={styles.actionEmoji}>📷</Text>
+              <Text style={styles.actionLabel}>Scan QR</Text>
+            </Card>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Open Ask AI"
+            activeOpacity={0.75}
+            onPress={() => navigation.getParent()?.navigate('QueryTab')}
+            style={styles.actionTouchTarget}
+          >
+            <Card style={styles.actionCard}>
+              <Text style={styles.actionEmoji}>🤖</Text>
+              <Text style={styles.actionLabel}>Ask AI</Text>
+            </Card>
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Work orders are not available yet"
+            activeOpacity={0.75}
+            onPress={() => Alert.alert('Work Orders', 'Work orders are not available yet.')}
+            style={styles.actionTouchTarget}
+          >
+            <Card style={styles.actionCard}>
+              <Text style={styles.actionEmoji}>📋</Text>
+              <Text style={styles.actionLabel}>Work Orders</Text>
+            </Card>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -90,6 +118,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     marginBottom: spacing.xs,
+  },
+  demoNote: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   title: {
     ...typography.h1,
@@ -147,6 +180,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     marginBottom: spacing.xxl,
+  },
+  actionTouchTarget: {
+    flex: 1,
   },
   actionCard: {
     flex: 1,

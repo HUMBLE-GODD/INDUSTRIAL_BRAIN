@@ -33,9 +33,8 @@ export default function AiQueryPage() {
         ...prev,
         {
           role: "assistant",
-          content: `Analysis for "${q}": Based on connected telemetry logs and historical maintenance records, no critical anomalies are currently blocking operations, but regular inspection is advised.`,
+          content: `Local demo response for "${q}". No API call was made. This demo displays local seed records and does not query live telemetry, maintenance history, or compliance systems.`,
           timestamp: "Just now",
-          relatedAssets: ["Equipment Telemetry", "Log Index #4092"],
         },
       ]);
       setIsLoading(false);
@@ -46,8 +45,8 @@ export default function AiQueryPage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="AI Query Assistant"
-        description="Natural language queries across equipment telemetry, maintenance logs, and compliance standards."
-        badge={<Badge variant="Pending" dot>AI Operations Ready</Badge>}
+        description="Try example questions against the local seed records. Responses on this page are demo text, not live system results."
+        badge={<Badge variant="Info" dot>Local Demo Only</Badge>}
         actions={
           <Button variant="secondary" size="sm" icon={<History className="w-4 h-4" />}>
             Query History
@@ -147,7 +146,7 @@ export default function AiQueryPage() {
               </div>
               <div className="p-3.5 rounded-2xl bg-[#0f182c] border border-slate-700/80 text-xs text-slate-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                Synthesizing multi-modal knowledge graph...
+                Preparing a local demo response...
               </div>
             </div>
           )}

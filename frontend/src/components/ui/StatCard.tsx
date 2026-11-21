@@ -1,6 +1,6 @@
 import React from "react";
 import { Activity, Bell, AlertTriangle, ShieldCheck } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { Sparkline } from "./Sparkline";
 
 export interface StatCardProps {

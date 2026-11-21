@@ -3,6 +3,9 @@
 **6 Members × 8 Phases = 48 Work Units**
 Phases are sequential. Within each phase, all 6 members work **in parallel**.
 
+> [!NOTE]
+> This file records the original phase-by-phase plan. The active owner boundaries and acceptance criteria for the next milestone are in [`team_assignments/`](team_assignments/). Use the six assignment files as the current source of work. Their combined 60% allocation is a planning estimate for the supervisor-demo scope described in `README.md`, not a claim about current completion or production readiness.
+
 > [!IMPORTANT]
 > This document tells you **WHAT** to build and **WHAT** output is expected.
 > It does **NOT** tell you **HOW**. Research, explore, and learn.

@@ -22,7 +22,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 import { BrainLogo } from "./BrainLogo";
 
 interface SidebarProps {

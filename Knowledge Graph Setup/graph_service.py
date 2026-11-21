@@ -6,9 +6,11 @@ Supports: nodes, relationships, schema constraints, indexes, and queries.
 """
 
 import os
+import re
 from typing import Any, Optional
+
 from dotenv import load_dotenv
-from neo4j import GraphDatabase, Driver, Session
+from neo4j import Driver, GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, AuthError
 
 load_dotenv()
@@ -29,6 +31,35 @@ NODE_LABELS = [
     "Document",
     "Regulation",
 ]
+
+RELATIONSHIP_TYPES = {
+    "HAS_COMPONENT",
+    "SUPPLIED_BY",
+    "LOCATED_AT",
+    "PRONE_TO",
+    "SIMILAR_TO",
+}
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _validate_identifier(value: str, description: str) -> str:
+    """Validate a Cypher identifier that cannot be supplied as a parameter."""
+    if not isinstance(value, str) or not _IDENTIFIER_RE.fullmatch(value):
+        raise ValueError(f"Invalid {description}: {value!r}")
+    return value
+
+
+def _validate_label(label: str) -> str:
+    if label not in NODE_LABELS:
+        raise ValueError(f"Unsupported node label: {label!r}")
+    return label
+
+
+def _validate_relationship_type(rel_type: str) -> str:
+    if rel_type not in RELATIONSHIP_TYPES:
+        raise ValueError(f"Unsupported relationship type: {rel_type!r}")
+    return rel_type
 
 # ---------------------------------------------------------------------------
 # Constraints: one uniqueness constraint per label + property
@@ -82,8 +113,12 @@ class GraphService:
         database: Optional[str] = None,
     ) -> None:
         self._uri      = uri      or os.getenv("NEO4J_URI",     "bolt://localhost:7687")
-        self._username = username or os.getenv("NEO4J_USERNAME", "neo4j")
-        self._password = password or os.getenv("NEO4J_PASSWORD", "")
+        self._username = (
+            username
+            or os.getenv("NEO4J_USER")
+            or os.getenv("NEO4J_USERNAME", "neo4j")
+        )
+        self._password = password or os.getenv("NEO4J_PASSWORD", "industrial_brain_neo4j")
         self._database = database or os.getenv("NEO4J_DATABASE", "neo4j")
         self._driver: Driver = self._connect()
 
@@ -161,6 +196,7 @@ class GraphService:
         label      : Neo4j node label (e.g. "Equipment")
         properties : dict of property key-value pairs
         """
+        _validate_label(label)
         query = (
             f"CREATE (n:{label} $props) "
             "RETURN n"
@@ -176,14 +212,27 @@ class GraphService:
         MERGE a node on `merge_key` then optionally SET additional properties.
         Useful for upserts.
         """
+        _validate_label(label)
+        if not merge_key:
+            raise ValueError("merge_key must contain at least one property.")
+        for property_name in merge_key:
+            _validate_identifier(property_name, "property name")
+
         set_clause = ""
-        params: dict[str, Any] = {"merge_key": merge_key}
+        merge_properties = ", ".join(
+            f"{property_name}: $merge_value_{index}"
+            for index, property_name in enumerate(merge_key)
+        )
+        params: dict[str, Any] = {
+            f"merge_value_{index}": value
+            for index, value in enumerate(merge_key.values())
+        }
         if set_props:
             set_clause = "SET n += $set_props "
             params["set_props"] = set_props
 
         query = (
-            f"MERGE (n:{label} $merge_key) "
+            f"MERGE (n:{label} {{{merge_properties}}}) "
             + set_clause
             + "RETURN n"
         )
@@ -194,6 +243,8 @@ class GraphService:
 
     def get_node(self, label: str, prop_key: str, prop_val: Any) -> Optional[dict]:
         """Fetch a single node by a property value."""
+        _validate_label(label)
+        _validate_identifier(prop_key, "property name")
         query = (
             f"MATCH (n:{label} {{{prop_key}: $val}}) "
             "RETURN n LIMIT 1"
@@ -206,6 +257,8 @@ class GraphService:
     def update_node(self, label: str, id_key: str, id_val: Any,
                     updates: dict[str, Any]) -> dict:
         """Update properties of a matching node."""
+        _validate_label(label)
+        _validate_identifier(id_key, "property name")
         query = (
             f"MATCH (n:{label} {{{id_key}: $id_val}}) "
             "SET n += $updates "
@@ -218,10 +271,13 @@ class GraphService:
 
     def delete_node(self, label: str, id_key: str, id_val: Any) -> int:
         """Detach-delete a node. Returns number of nodes deleted."""
+        _validate_label(label)
+        _validate_identifier(id_key, "property name")
         query = (
             f"MATCH (n:{label} {{{id_key}: $id_val}}) "
+            "WITH n LIMIT 1 "
             "DETACH DELETE n "
-            "RETURN count(n) AS deleted"
+            "RETURN 1 AS deleted"
         )
         with self._driver.session(database=self._database) as session:
             result = session.run(query, id_val=id_val)
@@ -230,6 +286,9 @@ class GraphService:
 
     def list_nodes(self, label: str, limit: int = 100) -> list[dict]:
         """Return up to `limit` nodes of a given label."""
+        _validate_label(label)
+        if limit <= 0:
+            raise ValueError("limit must be a positive integer.")
         query = f"MATCH (n:{label}) RETURN n LIMIT $limit"
         with self._driver.session(database=self._database) as session:
             result = session.run(query, limit=limit)
@@ -241,9 +300,13 @@ class GraphService:
 
     def create_relationship(
         self,
-        from_label: str, from_key: str, from_val: Any,
+        from_label: str,
+        from_key: str,
+        from_val: Any,
         rel_type: str,
-        to_label:   str, to_key:   str, to_val:   Any,
+        to_label: str,
+        to_key: str,
+        to_val: Any,
         rel_props: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
@@ -251,6 +314,12 @@ class GraphService:
 
         Returns True if the relationship was created.
         """
+        _validate_label(from_label)
+        _validate_identifier(from_key, "property name")
+        _validate_relationship_type(rel_type)
+        _validate_label(to_label)
+        _validate_identifier(to_key, "property name")
+
         props_clause = "{}" if not rel_props else "$rel_props"
         query = (
             f"MATCH (a:{from_label} {{{from_key}: $from_val}}) "
@@ -268,12 +337,22 @@ class GraphService:
 
     def merge_relationship(
         self,
-        from_label: str, from_key: str, from_val: Any,
+        from_label: str,
+        from_key: str,
+        from_val: Any,
         rel_type: str,
-        to_label:   str, to_key:   str, to_val:   Any,
+        to_label: str,
+        to_key: str,
+        to_val: Any,
         rel_props: Optional[dict[str, Any]] = None,
     ) -> bool:
         """MERGE a relationship (create only if it does not exist)."""
+        _validate_label(from_label)
+        _validate_identifier(from_key, "property name")
+        _validate_relationship_type(rel_type)
+        _validate_label(to_label)
+        _validate_identifier(to_key, "property name")
+
         query = (
             f"MATCH (a:{from_label} {{{from_key}: $from_val}}) "
             f"MATCH (b:{to_label}   {{{to_key}:   $to_val}}) "
@@ -291,7 +370,9 @@ class GraphService:
 
     def get_relationships(
         self,
-        from_label: str, from_key: str, from_val: Any,
+        from_label: str,
+        from_key: str,
+        from_val: Any,
         rel_type: Optional[str] = None,
         direction: str = "out",            # "out" | "in" | "both"
     ) -> list[dict]:
@@ -300,6 +381,13 @@ class GraphService:
 
         direction controls the arrow direction in the Cypher pattern.
         """
+        _validate_label(from_label)
+        _validate_identifier(from_key, "property name")
+        if rel_type is not None:
+            _validate_relationship_type(rel_type)
+        if direction not in {"out", "in", "both"}:
+            raise ValueError("direction must be 'out', 'in', or 'both'.")
+
         rel_part = f":{rel_type}" if rel_type else ""
         if direction == "out":
             pattern = f"(a)-[r{rel_part}]->(b)"
@@ -332,7 +420,10 @@ class GraphService:
 
     def run_query(self, cypher: str, params: Optional[dict] = None) -> list[dict]:
         """
-        Execute any Cypher query and return a list of record dicts.
+        Execute trusted Cypher query text and return record dictionaries.
+
+        This method intentionally accepts raw Cypher and must only be used by
+        trusted application code. Never pass user-supplied query text.
 
         >>> svc.run_query("MATCH (e:Equipment) RETURN e.name AS name LIMIT 5")
         """
@@ -345,6 +436,8 @@ class GraphService:
     # ------------------------------------------------------------------
 
     def count_nodes(self, label: Optional[str] = None) -> int:
+        if label is not None:
+            _validate_label(label)
         query = (
             f"MATCH (n:{label}) RETURN count(n) AS c"
             if label else

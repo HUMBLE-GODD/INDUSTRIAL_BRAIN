@@ -24,11 +24,11 @@ export default function MaintenancePage() {
     <div className="space-y-6 animate-in fade-in duration-300">
       <PageHeader
         title="Preventive & Corrective Maintenance"
-        description="Schedule, dispatch, and track work orders based on RUL degradation indicators and telemetry thresholds."
-        badge={<Badge variant="Critical" dot>3 Immediate Actions</Badge>}
+        description="Review local sample work orders for the five equipment records in the seed data."
+        badge={<Badge variant="Info" dot>Local Demo Data</Badge>}
         actions={
           <Button variant="purple" size="sm" icon={<Plus className="w-4 h-4" />}>
-            New Work Order
+            New Demo Work Order
           </Button>
         }
       />
@@ -119,7 +119,13 @@ export default function MaintenancePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {filteredTasks.map((task) => (
+                {filteredTasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-10 px-5 text-center text-slate-500">
+                      No work orders match this urgency filter.
+                    </td>
+                  </tr>
+                ) : filteredTasks.map((task) => (
                   <tr
                     key={task.id}
                     className="hover:bg-slate-800/30 transition-colors"
@@ -130,7 +136,9 @@ export default function MaintenancePage() {
                     <td className="py-3.5 px-5 font-medium text-white">
                       {task.title}
                     </td>
-                    <td className="py-3.5 px-5 text-slate-300">{task.equipment}</td>
+                    <td className="py-3.5 px-5 text-slate-300">
+                      {task.equipment} <span className="text-slate-500">({task.equipmentId})</span>
+                    </td>
                     <td className="py-3.5 px-5">
                       <Badge
                         variant={

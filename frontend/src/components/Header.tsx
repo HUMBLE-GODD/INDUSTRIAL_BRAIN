@@ -20,7 +20,8 @@ import {
   BarChart3,
   Bell,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
+import { mockEquipmentCatalog } from "@/data/mockData";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { BrainLogo } from "./BrainLogo";
@@ -202,7 +203,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
               className="flex items-center gap-1.5 px-3.5 py-2 hover:bg-white/10 rounded-l-lg transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Work Order</span>
+              <span>Demo Work Order</span>
             </button>
             <button
               onClick={() => setIsWorkOrderModalOpen(true)}
@@ -218,8 +219,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
       <Modal
         isOpen={isWorkOrderModalOpen}
         onClose={() => setIsWorkOrderModalOpen(false)}
-        title="Create New Work Order"
-        description="Dispatch automated maintenance or inspection assignment."
+        title="Create Demo Work Order"
+        description="Review a local sample work-order form for seeded equipment."
         footer={
           <>
             <Button
@@ -234,7 +235,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
               size="sm"
               onClick={() => setIsWorkOrderModalOpen(false)}
             >
-              Create Work Order
+              Close Demo Form
             </Button>
           </>
         }
@@ -245,11 +246,11 @@ export function Header({ onToggleSidebar }: HeaderProps) {
               Target Equipment
             </label>
             <select className="w-full bg-[#131d33] border border-slate-700 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
-              <option>Pump P-101 (Critical - Booster Line)</option>
-              <option>Motor M-204 (Warning - Temp Elevated)</option>
-              <option>Compressor C-01 (Warning - Vibration Monitor)</option>
-              <option>Turbine T-501 (Healthy)</option>
-              <option>Valve V-033 (Healthy)</option>
+              {mockEquipmentCatalog.map((equipment) => (
+                <option key={equipment.id} value={equipment.id}>
+                  {equipment.id} · {equipment.name}
+                </option>
+              ))}
             </select>
           </div>
           <div>

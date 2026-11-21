@@ -4,7 +4,7 @@ demo.py
 Interactive demo: shows the GraphService API in action.
 Run this AFTER seed.py.
 
-    python knowledge_graph/demo.py
+    python demo.py
 """
 
 from graph_service import GraphService

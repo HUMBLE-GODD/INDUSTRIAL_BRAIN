@@ -1,43 +1,56 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { Card } from '../../components/ui/Card';
 
-export default function SettingsScreen() {
-  const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
-  const [darkMode, setDarkMode] = React.useState(true);
+type MenuItem = {
+  icon: string;
+  label: string;
+  detail?: string;
+  onPress?: () => void;
+};
 
-  const menuSections = [
+type MenuSection = {
+  title: string;
+  items: MenuItem[];
+};
+
+export default function SettingsScreen() {
+  const showUnavailable = (feature: string) => {
+    Alert.alert(feature, `${feature} is not available yet.`);
+  };
+
+  const menuSections: MenuSection[] = [
     {
       title: 'Account',
       items: [
         { icon: '👤', label: 'Profile', detail: 'amit@industrialbrain.io' },
-        { icon: '🔑', label: 'Change Password', detail: '' },
+        { icon: '🔑', label: 'Change Password', detail: 'Unavailable', onPress: () => showUnavailable('Password management') },
         { icon: '🏭', label: 'Organization', detail: 'EPIC Industries' },
       ],
     },
     {
       title: 'Preferences',
       items: [
-        { icon: '🔔', label: 'Push Notifications', toggle: true, value: notificationsEnabled, onToggle: setNotificationsEnabled },
-        { icon: '🌙', label: 'Dark Mode', toggle: true, value: darkMode, onToggle: setDarkMode },
+        { icon: '🔔', label: 'Push Notifications', detail: 'Unavailable', onPress: () => showUnavailable('Push notifications') },
+        { icon: '🌙', label: 'Dark Mode', detail: 'Always on' },
       ],
     },
     {
       title: 'Data',
       items: [
-        { icon: '📥', label: 'Offline Data', detail: '42 MB cached' },
-        { icon: '🔄', label: 'Force Sync', detail: '' },
-        { icon: '🗑️', label: 'Clear Cache', detail: '' },
+        { icon: '📥', label: 'Offline Data', detail: 'Not available' },
+        { icon: '🔄', label: 'Force Sync', detail: 'Unavailable', onPress: () => showUnavailable('Sync') },
+        { icon: '🗑️', label: 'Clear Cache', detail: 'Unavailable', onPress: () => showUnavailable('Cache management') },
       ],
     },
     {
       title: 'About',
       items: [
         { icon: 'ℹ️', label: 'Version', detail: '1.0.0' },
-        { icon: '📄', label: 'Terms of Service', detail: '' },
-        { icon: '🛡️', label: 'Privacy Policy', detail: '' },
+        { icon: '📄', label: 'Terms of Service', detail: 'Unavailable', onPress: () => showUnavailable('Terms of Service') },
+        { icon: '🛡️', label: 'Privacy Policy', detail: 'Unavailable', onPress: () => showUnavailable('Privacy Policy') },
       ],
     },
   ];
@@ -66,28 +79,43 @@ export default function SettingsScreen() {
           <View key={si} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             <Card style={styles.menuCard}>
-              {section.items.map((item: any, ii) => (
-                <TouchableOpacity key={ii} style={[styles.menuItem, ii < section.items.length - 1 && styles.menuItemBorder]}>
-                  <Text style={styles.menuIcon}>{item.icon}</Text>
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                  {item.toggle ? (
-                    <Switch
-                      value={item.value}
-                      onValueChange={item.onToggle}
-                      trackColor={{ false: colors.border, true: colors.primaryDark }}
-                      thumbColor={item.value ? colors.primary : colors.textMuted}
-                    />
-                  ) : (
-                    <Text style={styles.menuDetail}>{item.detail}</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
+              {section.items.map((item, ii) => {
+                const rowStyle = [styles.menuItem, ii < section.items.length - 1 && styles.menuItemBorder];
+                const content = (
+                  <>
+                    <Text style={styles.menuIcon}>{item.icon}</Text>
+                    <Text style={styles.menuLabel}>{item.label}</Text>
+                    {item.detail ? <Text style={styles.menuDetail}>{item.detail}</Text> : null}
+                  </>
+                );
+
+                return item.onPress ? (
+                  <TouchableOpacity
+                    key={ii}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.label}, ${item.detail}`}
+                    activeOpacity={0.75}
+                    onPress={item.onPress}
+                    style={rowStyle}
+                  >
+                    {content}
+                  </TouchableOpacity>
+                ) : (
+                  <View key={ii} style={rowStyle}>
+                    {content}
+                  </View>
+                );
+              })}
             </Card>
           </View>
         ))}
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutButton}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          onPress={() => Alert.alert('Log Out', 'Sign-in is not enabled in this app yet.')}
+          style={styles.logoutButton}
+        >
           <Text style={styles.logoutText}>🚪  Log Out</Text>
         </TouchableOpacity>
       </ScrollView>

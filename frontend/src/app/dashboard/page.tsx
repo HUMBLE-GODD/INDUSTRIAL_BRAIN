@@ -39,11 +39,11 @@ export default function DashboardPage() {
   const [isUploadDocOpen, setIsUploadDocOpen] = useState(false);
 
   const equipmentIcons = {
-    "P-101": <Activity className="w-4 h-4 text-cyan-400" />,
-    "M-204": <Cpu className="w-4 h-4 text-cyan-400" />,
-    "C-01": <Server className="w-4 h-4 text-amber-400" />,
-    "V-033": <GitBranch className="w-4 h-4 text-cyan-400" />,
-    "T-501": <Gauge className="w-4 h-4 text-cyan-400" />,
+    "EQ-001": <Activity className="w-4 h-4 text-cyan-400" />,
+    "EQ-002": <Cpu className="w-4 h-4 text-cyan-400" />,
+    "EQ-003": <Server className="w-4 h-4 text-amber-400" />,
+    "EQ-004": <GitBranch className="w-4 h-4 text-cyan-400" />,
+    "EQ-005": <Gauge className="w-4 h-4 text-cyan-400" />,
   };
 
   const activityIcons = {
@@ -63,7 +63,7 @@ export default function DashboardPage() {
             Good morning, Admin! 👋
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Here&apos;s what&apos;s happening in your operations today.
+            Local demo snapshot for the five equipment records seeded in this workspace.
           </p>
         </div>
 
@@ -156,7 +156,7 @@ export default function DashboardPage() {
                       {eq.name}
                     </div>
                     <div className="text-[10px] text-slate-400 truncate">
-                      {eq.metric}
+                      {eq.id} · {eq.metric}
                     </div>
                   </div>
                 </div>
@@ -304,7 +304,7 @@ export default function DashboardPage() {
           </CardHeader>
 
           <CardContent className="space-y-2.5 pt-2">
-            {/* Action 1: Create Work Order */}
+            {/* Action 1: Open local demo work order form */}
             <button
               onClick={() => setIsWorkOrderOpen(true)}
               className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#11192e] hover:bg-[#18233f] border border-slate-800 hover:border-purple-500/40 text-slate-200 hover:text-white transition-all group text-left"
@@ -312,7 +312,7 @@ export default function DashboardPage() {
               <div className="w-8 h-8 rounded-lg bg-purple-950/60 border border-purple-500/40 text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Plus className="w-4 h-4" />
               </div>
-              <span className="text-xs font-semibold">Create Work Order</span>
+              <span className="text-xs font-semibold">Create Demo Work Order</span>
             </button>
 
             {/* Action 2: Add Equipment */}
@@ -323,7 +323,7 @@ export default function DashboardPage() {
               <div className="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Cpu className="w-4 h-4" />
               </div>
-              <span className="text-xs font-semibold">Add Equipment</span>
+              <span className="text-xs font-semibold">Add Demo Equipment</span>
             </button>
 
             {/* Action 3: View Reports */}
@@ -345,7 +345,7 @@ export default function DashboardPage() {
               <div className="w-8 h-8 rounded-lg bg-blue-950/60 border border-blue-500/40 text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Upload className="w-4 h-4" />
               </div>
-              <span className="text-xs font-semibold">Upload Document</span>
+              <span className="text-xs font-semibold">Add Demo Document</span>
             </button>
 
             {/* Action 5: AI Query Assistant */}
@@ -363,19 +363,19 @@ export default function DashboardPage() {
       </div>
 
       {/* Modals for Quick Actions */}
-      {/* 1. Create Work Order Modal */}
+      {/* 1. Local Demo Work Order Modal */}
       <Modal
         isOpen={isWorkOrderOpen}
         onClose={() => setIsWorkOrderOpen(false)}
-        title="Create Work Order"
-        description="Dispatch automated maintenance or inspection assignment."
+        title="Create Demo Work Order"
+        description="Review an illustrative local maintenance task for the seeded equipment."
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setIsWorkOrderOpen(false)}>
               Cancel
             </Button>
             <Button variant="purple" size="sm" onClick={() => setIsWorkOrderOpen(false)}>
-              Confirm & Dispatch
+              Close Demo Form
             </Button>
           </>
         }
@@ -384,10 +384,11 @@ export default function DashboardPage() {
           <div>
             <label className="block text-slate-300 font-medium mb-1">Target Equipment</label>
             <select className="w-full bg-[#131d33] border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
-              <option>Pump P-101 (Critical - Booster Line)</option>
-              <option>Motor M-204 (Warning - Temp Elevated)</option>
-              <option>Compressor C-01 (Warning - Vibration Monitor)</option>
-              <option>Turbine T-501 (Healthy)</option>
+              <option value="EQ-001">EQ-001 · Pump P-101</option>
+              <option value="EQ-002">EQ-002 · Heat Exchanger HX-202</option>
+              <option value="EQ-003">EQ-003 · Compressor C-305</option>
+              <option value="EQ-004">EQ-004 · Conveyor CB-410</option>
+              <option value="EQ-005">EQ-005 · Boiler BLR-501</option>
             </select>
           </div>
           <div>
@@ -401,15 +402,15 @@ export default function DashboardPage() {
       <Modal
         isOpen={isAddEquipmentOpen}
         onClose={() => setIsAddEquipmentOpen(false)}
-        title="Register New Industrial Asset"
-        description="Connect IoT telemetry sensors, baseline metrics, and maintenance manuals."
+        title="Add an Equipment Demo Record"
+        description="Add a local example record to the demo equipment catalog."
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setIsAddEquipmentOpen(false)}>
               Cancel
             </Button>
             <Button variant="primary" size="sm" onClick={() => setIsAddEquipmentOpen(false)}>
-              Register Asset
+              Add Demo Record
             </Button>
           </>
         }
@@ -417,16 +418,16 @@ export default function DashboardPage() {
         <div className="space-y-4 text-xs">
           <div>
             <label className="block text-slate-300 font-medium mb-1">Asset Tag ID</label>
-            <input type="text" placeholder="e.g., P-102 or VAL-045" className="w-full bg-[#131d33] border border-slate-700 rounded-lg px-3 py-2 text-slate-200" />
+            <input type="text" placeholder="e.g., EQ-006" className="w-full bg-[#131d33] border border-slate-700 rounded-lg px-3 py-2 text-slate-200" />
           </div>
           <div>
             <label className="block text-slate-300 font-medium mb-1">Equipment Type / Category</label>
             <select className="w-full bg-[#131d33] border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
-              <option>Centrifugal Booster Pump</option>
-              <option>Induction Electric Motor</option>
-              <option>Rotary Screw Compressor</option>
-              <option>Steam / Gas Turbine</option>
-              <option>Electro-Pneumatic Control Valve</option>
+              <option>Pump</option>
+              <option>Heat Exchanger</option>
+              <option>Compressor</option>
+              <option>Conveyor</option>
+              <option>Boiler</option>
             </select>
           </div>
         </div>
@@ -436,15 +437,15 @@ export default function DashboardPage() {
       <Modal
         isOpen={isUploadDocOpen}
         onClose={() => setIsUploadDocOpen(false)}
-        title="Upload Technical Document"
-        description="Index engineering manuals and inspection reports into the Knowledge Graph."
+        title="Add a Demo Document"
+        description="The documents shown in this interface are local sample metadata; no file upload or indexing is connected."
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setIsUploadDocOpen(false)}>
               Cancel
             </Button>
             <Button variant="primary" size="sm" onClick={() => setIsUploadDocOpen(false)}>
-              Upload & Ingest
+              Close Demo Form
             </Button>
           </>
         }
