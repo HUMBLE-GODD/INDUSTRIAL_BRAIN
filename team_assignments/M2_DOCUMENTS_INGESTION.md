@@ -20,7 +20,7 @@ Turn a manual or maintenance report into searchable, traceable evidence. Every i
 - Accept PDF, plain text, and CSV files with size limits, safe filenames, and clear unsupported-file errors. Extract text and preserve page/row metadata.
 - Chunk text with configurable size and overlap. Store stable chunk IDs, document ID, title, page/row, and chunk position in Qdrant payloads.
 - Reuse the existing BGE embedding and Qdrant services. Make re-indexing idempotent and delete document vectors when a document is deleted.
-- Record processing states (`queued`, `processed`, `failed`) and surface a useful error message when extraction or embedding fails.
+- Use M1’s shared document states (`uploaded`, `processing`, `processed`, `failed`) and surface a useful error message when extraction or embedding fails. Do not introduce a separate status enum.
 - Add one small, license-safe demo manual and one maintenance report with known passages used by the supervisor demo.
 - Add OCR for scanned images as a stretch task after PDF/text/CSV ingestion and citation metadata pass.
 

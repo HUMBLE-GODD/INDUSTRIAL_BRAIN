@@ -30,6 +30,9 @@ class EmbeddingService:
 
     @property
     def dimension(self) -> int:
+        get_dimension = getattr(self.model, "get_embedding_dimension", None)
+        if get_dimension is not None:
+            return get_dimension()
         return self.model.get_sentence_embedding_dimension()
 
     @staticmethod

@@ -33,7 +33,7 @@ Deliver the supervisor-demo feature: ask an industrial question, combine documen
 
 ## Acceptance checklist
 
-- [ ] With contract-compatible local fixtures, the seeded question “Which supplier is linked to repeated component failures, and what evidence supports that?” returns an answer with graph evidence and document citations.
+- [ ] With contract-compatible local fixtures, the seeded question “Which supplier provides components linked to high or critical failure risks across several assets, and what evidence supports that?” returns an answer with graph evidence and document citations. Describe seeded failure-mode relationships as risks, not as repeated historical events or proven supplier causality.
 - [ ] The no-key path works and clearly labels its deterministic answer mode.
 - [ ] The configured Gemini/Groq path has timeout and fallback behavior and preserves citations from retrieval.
 - [ ] Maintenance and compliance endpoints return structured, explainable results for the demo dataset.

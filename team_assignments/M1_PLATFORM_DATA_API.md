@@ -17,10 +17,10 @@ Give the other five members a stable API and canonical demo data to build agains
 ## Work to complete
 
 - Review the existing SQLAlchemy models and Alembic migration. Make upgrades work from a fresh database and make a second upgrade a no-op.
-- Define request/response schemas and consistent error responses for `/api/v1`. Include the document-processing and field-observation metadata needed by M2 and M6. Publish an early, versioned API contract in OpenAPI for the other teams to build against.
+- Define request/response schemas and consistent error responses for `/api/v1`. Use the shared document states `uploaded`, `processing`, `processed`, and `failed`, and include the field-observation metadata needed by M6. Publish an early, versioned API contract in OpenAPI for the other teams to build against.
 - Implement registration/login with the configured JWT settings, password hashing, and a reusable current-user dependency. Keep secrets in environment variables; fail clearly when a production secret is missing.
 - Implement authenticated `GET /api/v1/equipment`, `GET /api/v1/equipment/{equipment_id}`, and `GET /api/v1/equipment/{equipment_id}/history` endpoints.
-- Implement authenticated `POST /api/v1/observations` for a text/severity field report tied to an equipment ID.
+- Implement authenticated `POST /api/v1/observations` for an observation-only report with `equipment_id`, `category`, `severity`, and `note`. Return a stable observation ID, status, and creation time; this endpoint does not create a work order.
 - Add or reconcile the `Document` processing-state and `FieldObservation` persistence models so M2/M6 do not create competing schemas.
 - Seed a small, deterministic PostgreSQL demo dataset using the same equipment IDs as `Knowledge Graph Setup/seed.py`. Keep demo seeding idempotent and separate it from production startup.
 - Keep database connection, migration, and error behavior consistent with the current health endpoint and Compose setup.
@@ -40,7 +40,7 @@ Other members can develop against the versioned OpenAPI contract using local fix
 - [ ] A fresh database reaches Alembic `head`; repeated upgrade succeeds.
 - [ ] Login returns a usable JWT; invalid credentials return 401; protected routes reject missing or invalid tokens.
 - [ ] Equipment list/detail/history return typed, paginated data and useful 404/422 errors.
-- [ ] A field observation is persisted, tied to a valid equipment record, and returned with a stable ID.
+- [ ] The observation contract and examples document the request and response fields; an observation is persisted, tied to a valid equipment record, and returned with a stable ID and status.
 - [ ] PostgreSQL and Neo4j use the same canonical equipment IDs and core labels.
 - [ ] Demo data seeding can be run twice without duplicate rows.
 - [ ] API schemas and example requests are visible in `/docs` and documented for M2–M6.

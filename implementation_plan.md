@@ -1505,6 +1505,8 @@ CREATE INDEX idx_alerts_severity ON alerts(severity, resolved);
 
 ### 7.5 Requirements
 
+> This is the dependency snapshot from the original implementation plan, not the active install manifest. Use `backend/requirements.txt` for current Python dependencies. The active Docker image installs CPU-only PyTorch for local embedding work; see `backend/Dockerfile`.
+
 ```
 # backend/requirements.txt
 # Core

@@ -1,10 +1,10 @@
 # 🧠 Industrial Brain — Work Division
 
-**6 Members × 8 Phases = 48 Work Units**
-Phases are sequential. Within each phase, all 6 members work **in parallel**.
+**Original plan: 6 Members × 8 Phases = 48 Work Units**
+The original phases are sequential; within each phase, all 6 members work **in parallel**.
 
 > [!NOTE]
-> This file records the original phase-by-phase plan. The active owner boundaries and acceptance criteria for the next milestone are in [`team_assignments/`](team_assignments/). Use the six assignment files as the current source of work. Their combined 60% allocation is a planning estimate for the supervisor-demo scope described in `README.md`, not a claim about current completion or production readiness.
+> This file records the original phase-by-phase plan. Its phase order and checklists are historical; the active owner boundaries and acceptance criteria for the next milestone are in [`team_assignments/`](team_assignments/). Use the six assignment files as the current source of work. Their combined 60% allocation is a planning estimate for the supervisor-demo scope described in `README.md`, not a claim about current completion or production readiness.
 
 > [!IMPORTANT]
 > This document tells you **WHAT** to build and **WHAT** output is expected.
@@ -17,7 +17,7 @@ Phases are sequential. Within each phase, all 6 members work **in parallel**.
 ### M1 · Monorepo + DevOps
 Set up the project structure with all directories (`backend/`, `frontend/`, `mobile/`, `shared/`, `ml/`). Create a Docker Compose file that starts the backend, PostgreSQL, Neo4j, and Qdrant together. Write a one-command setup script.
 
-- [ ] `docker compose up` starts all services with zero manual steps
+- [ ] From a fresh clone, `make setup` or `./scripts/setup_dev.sh` creates `.env` from `.env.example` when needed, starts the four services, and waits for them to become healthy. Direct `docker compose up` works after `.env` has been configured.
 - [ ] `.env.example` documents every required variable
 - [ ] `README.md` with setup instructions and architecture diagram
 

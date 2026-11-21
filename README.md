@@ -2,7 +2,7 @@
 
 Industrial Brain is a prototype decision-support platform for plant operations. Its planned workflows combine equipment and maintenance records with manuals, reports, and supplier/failure relationships so engineers can investigate issues and make maintenance decisions.
 
-## 🏗 Architecture
+## 🏗 Target Architecture
 
 ```text
 User 
@@ -16,7 +16,11 @@ User
        └── AI/ML Processing  → Gemini / local models (planned)
 ```
 
+This is the planned end-state architecture. In the current prototype, the web and mobile clients still use local demo data, and the full REST, WebSocket, and Gemini workflows are not yet connected end to end.
+
 ## 🛠 Tech Stack
+
+This table lists the selected target technologies; some integrations remain planned work.
 
 | Component | Technology |
 |---|---|
@@ -26,7 +30,7 @@ User
 | Graph Database | Neo4j |
 | Vector Database | Qdrant |
 | Relational DB | PostgreSQL |
-| LLM Integration | Gemini |
+| LLM Integration | Gemini (planned; not wired into the current prototype) |
 
 ## Project Overview and 100% Completion Goal
 
@@ -46,7 +50,7 @@ Industrial Brain is being built to help people who operate and maintain factorie
 At the intended 100% completion point—after all planned features are implemented, connected, and validated with approved operational data—the system could help teams:
 
 - Find relevant manual passages and incident history faster while troubleshooting equipment.
-- Spot repeated component or supplier risks across several assets, with links to the evidence behind the finding.
+- Spot common component or supplier risks across several assets, with links to the evidence behind the finding.
 - Prioritize inspections and maintenance using recorded history and, once trained and evaluated, predictive models.
 - Track compliance requirements and surface possible gaps with supporting records.
 - Keep field observations, equipment records, and supervisor follow-up in one connected workflow.
@@ -87,6 +91,8 @@ cd mobile && npm ci && npx expo start
 
 The current clients use local demo data. End-to-end API workflows are part of the team assignments under `team_assignments/`.
 
+The backend container installs CPU-only PyTorch, so local embedding work runs on the CPU without CUDA libraries. On ARM-based machines, this avoids pulling the large CUDA packages that are not used. The first embedding operation or vector integration test downloads the BGE model from Hugging Face; keep an internet connection available for that first run.
+
 For any non-local deployment, set `APP_ENV=production` and provide a unique `JWT_SECRET`; the application rejects the development placeholder in production mode.
 
 ## 📁 Project Structure
@@ -123,7 +129,7 @@ INDUSTRIAL_BRAIN/
 
 ## Supervisor Demo Milestone
 
-The six team packages below cover an estimated 60% of the planned project work, allocated evenly at 10 percentage points per member. Count a package complete only after its acceptance checklist passes and its PR is merged. This is a planning estimate for the supervisor-demo scope, not a claim that the repository is already 60% complete or production-ready. The remaining estimated 40% includes full ML training/evaluation on real datasets, push notifications, production security/operations, and deployment hardening.
+The six team packages below are estimated to complete about 60% of the planned project scope needed for a supervisor demo, split evenly at 10 percentage points per member. This percentage describes project work, not the share of words in this README or the current completion level of the codebase. Count a package complete only after its acceptance checklist passes and its PR is merged. The remaining estimated 40% includes full ML training/evaluation on real datasets, push notifications, production security/operations, and deployment hardening.
 
 | Member | Assignment | Weight |
 |---|---|---:|

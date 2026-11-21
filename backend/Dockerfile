@@ -11,6 +11,11 @@ WORKDIR /app
 
 # Install Python dependencies
 COPY backend/requirements.txt .
+# sentence-transformers uses CPU inference in this development container.
+# Install the CPU-only wheel explicitly to avoid pulling large CUDA libraries.
+RUN pip install --no-cache-dir \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    "torch==2.10.0+cpu"
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
