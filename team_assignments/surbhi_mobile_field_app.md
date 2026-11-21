@@ -1,4 +1,4 @@
-# M6 — Mobile Field Workflow
+# Surbhi — Mobile Field Workflow
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
 **Owner:** Surbhi
@@ -15,18 +15,18 @@ Make the Expo app useful to a technician standing beside equipment: find an asse
 
 ## Work to complete
 
-- Add a typed API client with an environment-configured backend URL and secure token storage for M1’s auth contract.
-- Connect equipment list and detail to M1’s API. Display the selected asset’s actual status, metrics, maintenance history, linked supplier/failure risk, and compliance summary.
+- Add a typed API client with an environment-configured backend URL and secure token storage for Tatvik’s auth contract.
+- Connect equipment list and detail to Tatvik’s API. Display the selected asset’s actual status, metrics, maintenance history, linked supplier/failure risk, and compliance summary.
 - Implement equipment lookup from a QR scan using an Expo-supported scanner package. Keep a manual equipment-ID entry path available for devices without camera permission or QR hardware.
-- Add a field-observation submission flow with `equipment_id`, `category`, `severity`, and `note`, matching M1’s contract. This records an observation only; it does not create a work order. Show the returned observation ID and status; optional photo upload is a stretch task.
-- Connect the Ask AI screen to M4’s query API and show answer mode, citations, and an explicit unavailable/error state.
+- Add a field-observation submission flow with `equipment_id`, `category`, `severity`, and `note`, matching Tatvik’s contract. This records an observation only; it does not create a work order. Show the returned observation ID and status; optional photo upload is a stretch task.
+- Connect the Ask AI screen to Prathmesh’s query API and show answer mode, citations, and an explicit unavailable/error state.
 - Implement authentication, loading, empty, offline, and retry states. Remove controls that imply unsupported behavior.
 - Keep navigation and core workflows usable on a small screen and with camera permission denied.
 - Add focused tests for API mapping, scanner/manual lookup, submission validation, and failure states.
 
 ## Ownership boundaries
 
-- Own `mobile/` only. M1 owns backend auth/equipment contracts, M4 owns query/analysis contracts, and M5 owns the web client.
+- Own `mobile/` only. Tatvik owns backend auth/equipment contracts, Prathmesh owns query/analysis contracts, and Anchal owns the web client.
 - Coordinate any new endpoint or response field with its backend owner before implementing it.
 
 ## Parallel work and integration
@@ -52,4 +52,4 @@ Make the Expo app useful to a technician standing beside equipment: find an asse
 
 ## PR instructions
 
-Create `team/m6-mobile-field`, push it, and open one PR against `main`. Include screenshots or a short screen recording using clearly labeled fixture data, device/emulator details, permission behavior, test output, and required public environment variables. Invite M1 and M4 to review API-contract compatibility; the PR must run without their branches.
+Create `team/surbhi-mobile-field`, push it, and open one PR against `main`. Include screenshots or a short screen recording using clearly labeled fixture data, device/emulator details, permission behavior, test output, and required public environment variables. Invite Tatvik and Prathmesh to review API-contract compatibility; the PR must run without their branches.

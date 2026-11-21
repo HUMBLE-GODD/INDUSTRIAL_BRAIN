@@ -1,4 +1,4 @@
-# M5 — Web Dashboard Integration
+# Anchal — Web Dashboard Integration
 
 **Estimated work allocation: 10 percentage points toward the 60% project milestone**
 **Owner:** Anchal
@@ -11,21 +11,21 @@
 
 ## Outcome
 
-Turn the current web prototype into the supervisor’s control-room view. The dashboard must show live API data, and the AI query screen must display source citations from M4.
+Turn the current web prototype into the supervisor’s control-room view. The dashboard must show live API data, and the AI query screen must display source citations from Prathmesh.
 
 ## Work to complete
 
 - Build one typed API client using the `/api/v1` contract. Configure the API base URL through a public environment variable; do not hardcode localhost into page components.
 - Replace `mockData.ts` as the default source for dashboard KPIs, equipment, documents, maintenance, graph, RCA, and compliance pages. Keep a clearly labelled demo fallback only when the API is unavailable.
 - Add loading, empty, stale, and error states to data-driven pages. Do not show fabricated metrics as live results.
-- Connect document upload/list/status to M2; connect AI query and citations to M4; connect supplier-risk graph and RCA to M3; connect equipment detail to M1; connect maintenance/compliance pages to M4.
-- Add sign-in and token handling for M1’s auth contract. Handle expired sessions without losing the user’s current form input.
+- Connect document upload/list/status to Kavyansh; connect AI query and citations to Prathmesh; connect supplier-risk graph and RCA to Hardik; connect equipment detail to Tatvik; connect maintenance/compliance pages to Prathmesh.
+- Add sign-in and token handling for Tatvik’s auth contract. Handle expired sessions without losing the user’s current form input.
 - Preserve the existing visual system and ensure tables, dialogs, and graph/evidence views work at desktop and narrow widths.
 - Add component or route-level tests for API states, source links, forms, and keyboard accessibility.
 
 ## Ownership boundaries
 
-- Own `frontend/` only. M1–M4 own backend contracts and M6 owns the mobile client.
+- Own `frontend/` only. Tatvik, Kavyansh, Hardik, and Prathmesh own backend contracts and Surbhi owns the mobile client.
 - Do not change server response shapes to fit a page; request a contract update and coordinate it with the route owner.
 
 ## Parallel work and integration
@@ -44,4 +44,4 @@ Turn the current web prototype into the supervisor’s control-room view. The da
 
 ## PR instructions
 
-Create `team/m5-web-dashboard`, push it, and open one PR against `main`. Include screenshots of the fixture-backed dashboard and cited answer, clearly labeled as fixture data, a list of environment variables, and command output for lint/typecheck/build. Invite M1–M4 to review API-contract compatibility; the PR must run without their branches.
+Create `team/anchal-web-dashboard`, push it, and open one PR against `main`. Include screenshots of the fixture-backed dashboard and cited answer, clearly labeled as fixture data, a list of environment variables, and command output for lint/typecheck/build. Invite Tatvik, Kavyansh, Hardik, and Prathmesh to review API-contract compatibility; the PR must run without their branches.

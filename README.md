@@ -38,12 +38,12 @@ Industrial Brain is being built to help people who operate and maintain factorie
 
 ### Key deliverables
 
-- **Shared platform and equipment API (M1):** secure accounts, consistent equipment records, maintenance history, and a stable interface for the other parts of the system.
-- **Document intake and evidence search (M2):** upload manuals and reports, extract searchable text, and keep page or row references so users can check the original source.
-- **Knowledge graph and root-cause evidence (M3):** map equipment, components, suppliers, locations, and failure modes to reveal related risks and explain how they connect.
-- **Decision services (M4):** answer questions using document and graph evidence, show citations, and provide clearly labeled maintenance and compliance analysis.
-- **Supervisor dashboard (M5):** view assets, evidence, supplier risks, maintenance, and compliance information on the web.
-- **Technician mobile workflow (M6):** look up an asset by QR code or ID, review available information, ask a question, and submit a field observation.
+- **Shared platform and equipment API (Tatvik):** secure accounts, consistent equipment records, maintenance history, and a stable interface for the other parts of the system.
+- **Document intake and evidence search (Kavyansh):** upload manuals and reports, extract searchable text, and keep page or row references so users can check the original source.
+- **Knowledge graph and root-cause evidence (Hardik):** map equipment, components, suppliers, locations, and failure modes to reveal related risks and explain how they connect.
+- **Decision services (Prathmesh):** answer questions using document and graph evidence, show citations, and provide clearly labeled maintenance and compliance analysis.
+- **Supervisor dashboard (Anchal):** view assets, evidence, supplier risks, maintenance, and compliance information on the web.
+- **Technician mobile workflow (Surbhi):** look up an asset by QR code or ID, review available information, ask a question, and submit a field observation.
 
 ### What 100% completion could help with in real operations
 
@@ -133,27 +133,18 @@ The six team packages below are estimated to complete about 60% of the planned p
 
 | Member | Assignment | Weight |
 |---|---|---:|
-| M1 | [Platform, data contract, and core API](team_assignments/M1_PLATFORM_DATA_API.md) | 10% |
-| M2 | [Document intake and evidence index](team_assignments/M2_DOCUMENTS_INGESTION.md) | 10% |
-| M3 | [Knowledge graph and supplier-risk evidence](team_assignments/M3_KNOWLEDGE_GRAPH.md) | 10% |
-| M4 | [AI query and decision services](team_assignments/M4_DECISION_SERVICES.md) | 10% |
-| M5 | [Web dashboard integration](team_assignments/M5_WEB_DASHBOARD.md) | 10% |
-| M6 | [Mobile field workflow](team_assignments/M6_MOBILE_FIELD_APP.md) | 10% |
+| Tatvik | [Platform, data contract, and core API](team_assignments/tatvik_platform_data_api.md) | 10% |
+| Kavyansh | [Document intake and evidence index](team_assignments/kavyansh_documents_ingestion.md) | 10% |
+| Hardik | [Knowledge graph and supplier-risk evidence](team_assignments/hardik_knowledge_graph.md) | 10% |
+| Prathmesh | [AI query and decision services](team_assignments/prathmesh_decision_services.md) | 10% |
+| Anchal | [Web dashboard integration](team_assignments/anchal_web_dashboard.md) | 10% |
+| Surbhi | [Mobile field workflow](team_assignments/surbhi_mobile_field_app.md) | 10% |
 
 ### Independent parallel work
 
 All six members can work from the current `main`; no assignment requires another team's branch to be merged first. Use the contracts in the assignment files and current repository, with local fixtures, mock APIs, or adapters for services another team is building. Do not import code from an unmerged branch. Keep each PR limited to its owned files and make its build and tests pass on its own. Record any contract assumptions so they can be reconciled during integration.
 
 After the six independent PRs are merged, wire the adapters to the real services and run the combined demo: upload a document, show a cited supplier-risk answer, follow up on the equipment in the dashboard, and submit a technician observation from mobile. Count the 60% milestone only after this integration and the acceptance criteria pass.
-
-## 👥 Team
-
-- **M1:** Tatvik
-- **M2:** Kavyansh
-- **M3:** Hardik
-- **M4:** Prathmesh
-- **M5:** Anchal
-- **M6:** Surbhi
 
 `make clean` deletes local database volumes, including stored demo data.
 `make seed-reset` deletes every node and relationship in the configured Neo4j database before reseeding; use it only with a dedicated demo database.

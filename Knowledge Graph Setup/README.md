@@ -1,4 +1,4 @@
-# Knowledge Graph - M3 Phase 1
+# Knowledge Graph — Hardik, Phase 1
 
 Neo4j-based knowledge graph for the Industrial Brain project.
 The standalone demo needs Docker and the Python dependencies in `requirements.txt`.
@@ -190,7 +190,7 @@ with GraphService() as svc:
 
 ---
 
-## Deliverable Checklist (M3 - Phase 1)
+## Deliverable Checklist (Hardik - Phase 1)
 
 - [x] Neo4j connection configured and verified
 - [x] All 10 node label UNIQUE constraints created (IF NOT EXISTS)
