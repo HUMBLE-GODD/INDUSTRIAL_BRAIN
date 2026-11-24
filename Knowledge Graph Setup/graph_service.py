@@ -170,17 +170,40 @@ class GraphService:
             record = result.single()
             return dict(record["n"]) if record else {}
 
-    def merge_node(self, label: str, merge_key: dict[str, Any],
-                   set_props: Optional[dict[str, Any]] = None) -> dict:
+    def merge_node(
+        self,
+        label: str,
+        merge_key_name: "str | dict[str, Any]",
+        merge_key_value: Any = None,
+        set_props: Optional[dict[str, Any]] = None,
+    ) -> dict:
         """
-        MERGE a node on `merge_key` then optionally SET additional properties.
-        Useful for upserts.
+        MERGE a node idempotently, then optionally SET additional properties.
+
+        Two call signatures are supported:
+
+        1. Legacy (merge_key_name is a dict):
+               svc.merge_node("Equipment", {"equipment_id": "EQ-001"}, set_props={...})
+
+        2. New positional form (merge_key_name is a str, merge_key_value is the value):
+               svc.merge_node("Equipment", "equipment_id", "EQ-001", all_props_dict)
+           In this form *set_props* receives the full property dict and the merge
+           key is extracted from it automatically.
         """
+        if isinstance(merge_key_name, dict):
+            # Legacy call: merge_key_name is the merge-key dict, merge_key_value is set_props
+            _merge_key_dict = merge_key_name
+            _set_props = merge_key_value if isinstance(merge_key_value, dict) else set_props
+        else:
+            # New call: (label, key_name, key_value, props_dict)
+            _merge_key_dict = {merge_key_name: merge_key_value}
+            _set_props = set_props
+
         set_clause = ""
-        params: dict[str, Any] = {"merge_key": merge_key}
-        if set_props:
+        params: dict[str, Any] = {"merge_key": _merge_key_dict}
+        if _set_props:
             set_clause = "SET n += $set_props "
-            params["set_props"] = set_props
+            params["set_props"] = _set_props
 
         query = (
             f"MERGE (n:{label} $merge_key) "
