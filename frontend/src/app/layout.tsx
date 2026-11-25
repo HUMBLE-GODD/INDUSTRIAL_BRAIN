@@ -1,12 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppLayout } from "@/components/AppLayout";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
 
 export const metadata: Metadata = {
   title: "Industrial Brain — Intelligent Operations Platform",
@@ -20,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} font-sans bg-[#080c14] text-slate-100 antialiased`}>
+      <body className="font-sans bg-[#080c14] text-slate-100 antialiased">
         <AppLayout>{children}</AppLayout>
       </body>
     </html>
