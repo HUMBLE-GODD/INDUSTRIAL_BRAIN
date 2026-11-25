@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-sqlalchemy
+sqlalchemy[asyncio]
 alembic
 asyncpg
 psycopg2-binary
@@ -15,5 +15,7 @@ pytest-asyncio
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
+aiosqlite
+rich
 httpx
 websockets
