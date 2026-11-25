@@ -17,3 +17,6 @@ python-jose[cryptography]
 passlib[bcrypt]
 httpx
 websockets
+# Document extraction
+pypdf
+aiosqlite
