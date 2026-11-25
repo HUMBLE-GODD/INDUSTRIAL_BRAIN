@@ -14,10 +14,101 @@ Coverage
 """
 from __future__ import annotations
 
+import os
+import sys
+import types
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
+
+# Ensure "Knowledge Graph Setup" is in sys.path
+_kg_path = Path(__file__).resolve().parents[2] / "Knowledge Graph Setup"
+if str(_kg_path) not in sys.path:
+    sys.path.insert(0, str(_kg_path))
+
+# Use SQLite for tests if asyncpg is not available
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
+
+# Stub neo4j if not installed in the current environment so tests run cleanly
+if "neo4j" not in sys.modules:
+    try:
+        import neo4j
+    except ImportError:
+        neo4j_mod = types.ModuleType("neo4j")
+        neo4j_exceptions = types.ModuleType("neo4j.exceptions")
+
+        class ServiceUnavailable(Exception):
+            pass
+
+        class AuthError(Exception):
+            pass
+
+        neo4j_exceptions.ServiceUnavailable = ServiceUnavailable
+        neo4j_exceptions.AuthError = AuthError
+        neo4j_mod.exceptions = neo4j_exceptions
+
+        class AsyncGraphDatabase:
+            driver = MagicMock()
+
+        class GraphDatabase:
+            driver = MagicMock()
+
+        neo4j_mod.AsyncGraphDatabase = AsyncGraphDatabase
+        neo4j_mod.GraphDatabase = GraphDatabase
+        neo4j_mod.AsyncDriver = MagicMock
+        neo4j_mod.Driver = MagicMock
+        neo4j_mod.Session = MagicMock
+        neo4j_mod.AsyncSession = MagicMock
+        sys.modules["neo4j"] = neo4j_mod
+        sys.modules["neo4j.exceptions"] = neo4j_exceptions
+
+# Stub asyncpg if not installed
+if "asyncpg" not in sys.modules:
+    try:
+        import asyncpg
+    except ImportError:
+        asyncpg_mod = types.ModuleType("asyncpg")
+        sys.modules["asyncpg"] = asyncpg_mod
+
+# Stub qdrant_client if not installed
+if "qdrant_client" not in sys.modules:
+    try:
+        import qdrant_client
+    except ImportError:
+        qdrant_mod = types.ModuleType("qdrant_client")
+        class AsyncQdrantClient:
+            def __init__(self, *args, **kwargs): pass
+            async def get_collections(self): return MagicMock(collections=[])
+        qdrant_mod.AsyncQdrantClient = AsyncQdrantClient
+        sys.modules["qdrant_client"] = qdrant_mod
+
+        qdrant_models = types.ModuleType("qdrant_client.models")
+        class Distance:
+            COSINE = "cosine"
+            EUCLID = "euclid"
+            DOT = "dot"
+        qdrant_models.Distance = Distance
+        qdrant_models.VectorParams = MagicMock()
+        qdrant_models.PointStruct = MagicMock()
+        qdrant_models.ScoredPoint = MagicMock()
+        sys.modules["qdrant_client.models"] = qdrant_models
+
+# Stub sentence_transformers if not installed
+if "sentence_transformers" not in sys.modules:
+    try:
+        import sentence_transformers
+    except ImportError:
+        st_mod = types.ModuleType("sentence_transformers")
+        st_mod.SentenceTransformer = MagicMock()
+        sys.modules["sentence_transformers"] = st_mod
+
+# Mock database engine creation so test runs even without DB
+with patch("app.db.session.create_async_engine") as _mock_engine:
+    _mock_engine.return_value = MagicMock()
+    from app.main import app as fastapi_app
 
 import pytest
 from fastapi.testclient import TestClient
+import app.db.neo4j as neo4j_db
 
 
 # ---------------------------------------------------------------------------
@@ -27,14 +118,12 @@ from fastapi.testclient import TestClient
 @pytest.fixture(scope="module")
 def client():
     """TestClient with Neo4j and other external services mocked out."""
-    # Patch the driver so the lifespan does not try to connect to a real Neo4j
-    with patch("app.db.neo4j.AsyncGraphDatabase") as mock_driver_cls:
+    with patch.object(neo4j_db, "AsyncGraphDatabase") as mock_driver_cls:
         mock_driver = AsyncMock()
         mock_driver.verify_connectivity = AsyncMock(return_value=None)
         mock_driver_cls.driver.return_value = mock_driver
 
-        from app.main import app  # import after patch
-        with TestClient(app, raise_server_exceptions=False) as c:
+        with TestClient(fastapi_app, raise_server_exceptions=False) as c:
             yield c
 
 
@@ -59,30 +148,18 @@ def _make_session_mock(return_data: list[dict]):
 class TestGraphSummary:
     def test_returns_summary_structure(self, client):
         """Happy path: summary returns total_nodes and by_label keys."""
-        from app.graph import repository
-
-        async def _mock_summary(session):
-            return {"total_nodes": 30, "total_relationships": 38, "by_label": {"Equipment": 5}}
-
-        with patch.object(repository, "fetch_graph_summary", side_effect=_mock_summary):
-            with patch("app.graph.service.neo4j_session") as mock_ctx:
-                mock_ctx.return_value.__aenter__ = AsyncMock(return_value=AsyncMock())
-                mock_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-
-                from app.graph.service import GraphQueryService
-                svc = GraphQueryService()
-
-                import asyncio
-                with patch.object(svc, "get_graph_summary", new=AsyncMock(
-                    return_value={"total_nodes": 30, "total_relationships": 38, "by_label": {"Equipment": 5}}
-                )):
-                    from app.api.v1 import graph as graph_module
-                    with patch.object(graph_module, "_service", svc):
-                        resp = client.get("/api/v1/graph/summary")
-                        assert resp.status_code == 200
-                        data = resp.json()
-                        assert "total_nodes" in data
-                        assert "by_label" in data
+        from app.graph.service import GraphQueryService
+        svc = GraphQueryService()
+        with patch.object(svc, "get_graph_summary", new=AsyncMock(
+            return_value={"total_nodes": 30, "total_relationships": 38, "by_label": {"Equipment": 5}}
+        )):
+            from app.api.v1 import graph as graph_module
+            with patch.object(graph_module, "_service", svc):
+                resp = client.get("/api/v1/graph/summary")
+                assert resp.status_code == 200
+                data = resp.json()
+                assert "total_nodes" in data
+                assert "by_label" in data
 
     def test_degraded_when_neo4j_down(self, client):
         """When Neo4j is unavailable the endpoint returns 503."""
@@ -153,7 +230,6 @@ class TestSupplierRisks:
                 resp = client.get("/api/v1/graph/supplier-risks")
                 assert resp.status_code == 200
                 breakdown = resp.json()["supplier_risks"][0]["severity_breakdown"]
-                # All three tiers must be present
                 assert "medium" in breakdown
                 assert "high" in breakdown or "critical" in breakdown
 
@@ -162,7 +238,6 @@ class TestSupplierRisks:
         svc = GraphQueryService()
         with patch.object(svc, "get_supplier_risks", new=AsyncMock(return_value=[])):
             from app.api.v1 import graph as graph_module
-            # Simulate empty list (unavailable) → 200 with empty list, not 503
             with patch.object(graph_module, "_service", svc):
                 resp = client.get("/api/v1/graph/supplier-risks")
                 assert resp.status_code == 200
@@ -206,7 +281,6 @@ class TestRCA:
                 assert data["equipment_id"] == "EQ-001"
                 assert "component_risk_paths" in data
                 assert "evidence_note" in data
-                # Must NOT imply dated incidents
                 assert "incident" not in data["evidence_note"].lower() or "not" in data["evidence_note"].lower()
 
     def test_rca_not_found(self, client):
@@ -223,7 +297,6 @@ class TestRCA:
 
     def test_rca_invalid_id_format(self, client):
         """Non-canonical IDs are rejected with 422 before hitting Neo4j."""
-        # Completely invalid format
         resp = client.get("/api/v1/rca/PUMP_01")
         assert resp.status_code == 422
 
@@ -233,14 +306,12 @@ class TestRCA:
         assert resp.status_code == 422
 
     def test_rca_neo4j_down_returns_503(self, client):
-        from neo4j.exceptions import ServiceUnavailable
         from app.graph.service import GraphQueryService
         svc = GraphQueryService()
         with patch.object(svc, "get_rca", new=AsyncMock(return_value=None)):
             from app.api.v1 import graph as graph_module
             with patch.object(graph_module, "_service", svc):
                 resp = client.get("/api/v1/rca/EQ-001")
-                # None → 404 (Neo4j unavailable path goes through service returning None)
                 assert resp.status_code in (404, 503)
 
 
@@ -249,22 +320,19 @@ class TestRCA:
 # ---------------------------------------------------------------------------
 
 class TestRepositoryIdempotency:
-    """
-    Verify that the repository Cypher uses MERGE (idempotency).
-    We inspect the actual Cypher strings in graph_service.py.
-    """
+    """Verify that the repository Cypher uses MERGE (idempotency)."""
 
     def test_merge_node_uses_merge_keyword(self):
         """GraphService.merge_node must issue a MERGE statement."""
         import inspect
-        from graph_service import GraphService  # type: ignore[import]
+        from graph_service import GraphService
         src = inspect.getsource(GraphService.merge_node)
         assert "MERGE" in src.upper(), "merge_node must use MERGE Cypher"
 
     def test_merge_relationship_uses_merge_keyword(self):
         """GraphService.merge_relationship must issue a MERGE statement."""
         import inspect
-        from graph_service import GraphService  # type: ignore[import]
+        from graph_service import GraphService
         src = inspect.getsource(GraphService.merge_relationship)
         assert "MERGE" in src.upper(), "merge_relationship must use MERGE Cypher"
 
@@ -278,25 +346,18 @@ class TestVerificationScript:
 
     def test_verification_returns_false_on_missing_data(self):
         """run_verification returns False when graph is empty."""
-        from verify import run_verification  # type: ignore[import]
-        from unittest.mock import MagicMock
-
+        from verify import run_verification
         mock_svc = MagicMock()
-        # All count queries return 0
         mock_svc.run_query.return_value = [{"c": 0}]
-
         result = run_verification(mock_svc)
         assert result is False
 
     def test_verification_returns_true_on_full_data(self):
         """run_verification returns True when all counts meet minimums."""
-        from verify import run_verification, CHECKS  # type: ignore[import]
-        from unittest.mock import MagicMock
-
+        from verify import run_verification
         mock_svc = MagicMock()
 
         def _run_query(cypher, **_):
-            # Return a count that satisfies all minimums
             return [{"c": 999}]
 
         mock_svc.run_query.side_effect = _run_query
