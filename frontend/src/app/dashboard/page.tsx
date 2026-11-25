@@ -31,12 +31,22 @@ import { DonutChart } from "@/components/ui/DonutChart";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { mockDashboardData } from "@/data/mockData";
+import { ApiPending, DemoDataNotice } from "@/components/ui/ApiState";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function DashboardPage() {
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
+  const emptyDashboardData = { stats: [], equipmentHealth: [], recentAlerts: [], recentActivity: [], maintenanceOverview: { total: 0, segments: [] } } as typeof mockDashboardData;
+  const dashboardData = demoEnabled ? mockDashboardData : null;
   const [timeRange, setTimeRange] = useState("Last 24 Hours");
   const [isWorkOrderOpen, setIsWorkOrderOpen] = useState(false);
   const [isAddEquipmentOpen, setIsAddEquipmentOpen] = useState(false);
   const [isUploadDocOpen, setIsUploadDocOpen] = useState(false);
+  const viewData = dashboardData || emptyDashboardData;
+
+  if (!demoEnabled) {
+    return <div className="space-y-6 animate-in fade-in duration-300"><PageHeader title="Operations Dashboard" description="Operational KPIs, alerts, equipment health, activity, and maintenance overview." badge={<Badge variant="Pending" dot>Backend Pending</Badge>} /><ApiPending feature="Dashboard aggregate metrics and operational activity" /></div>;
+  }
 
   const equipmentIcons = {
     "P-101": <Activity className="w-4 h-4 text-cyan-400" />,
@@ -56,6 +66,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true" && <DemoDataNotice />}
       {/* Header Greeting & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -102,7 +113,7 @@ export default function DashboardPage() {
 
       {/* 4 KPI Top Stat Cards with SVG Watermarks */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {mockDashboardData.stats.map((stat, idx) => (
+        {viewData.stats.map((stat, idx) => (
           <StatCard
             key={idx}
             title={stat.title}
@@ -133,7 +144,7 @@ export default function DashboardPage() {
           </CardHeader>
 
           <CardContent className="space-y-4 pt-2">
-            {mockDashboardData.equipmentHealth.map((eq) => (
+            {viewData.equipmentHealth.map((eq) => (
               <div
                 key={eq.id}
                 className="flex items-center justify-between gap-4 p-2 rounded-xl hover:bg-slate-800/40 transition-colors"
@@ -204,7 +215,7 @@ export default function DashboardPage() {
           </CardHeader>
 
           <CardContent className="space-y-2.5 pt-2">
-            {mockDashboardData.recentAlerts.map((alert) => (
+            {viewData.recentAlerts.map((alert) => (
               <div
                 key={alert.id}
                 className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-slate-800/40 transition-colors group cursor-pointer"
@@ -248,7 +259,7 @@ export default function DashboardPage() {
 
           <CardContent className="pt-2">
             <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
-              {mockDashboardData.recentActivity.map((activity) => (
+              {viewData.recentActivity.map((activity) => (
                 <div
                   key={activity.id}
                   className="relative flex items-center justify-between gap-3 text-xs"
@@ -288,9 +299,9 @@ export default function DashboardPage() {
 
           <CardContent className="pt-2">
             <DonutChart
-              total={mockDashboardData.maintenanceOverview.total}
+              total={viewData.maintenanceOverview.total}
               totalLabel="Total"
-              segments={mockDashboardData.maintenanceOverview.segments}
+              segments={viewData.maintenanceOverview.segments}
             />
           </CardContent>
         </Card>
