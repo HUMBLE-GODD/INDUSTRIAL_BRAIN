@@ -1,4 +1,4 @@
-.PHONY: dev down restart logs logs-backend clean seed test shell psql neo4j-shell setup
+.PHONY: dev down restart logs logs-backend clean seed verify-graph test shell psql neo4j-shell setup
 
 dev:
 	docker compose up --build
@@ -17,8 +17,22 @@ logs-backend:
 clean:
 	docker compose down -v
 
+# Idempotent seed – populates the Knowledge Graph without destroying existing data
 seed:
 	docker compose exec backend python -m scripts.seed
+
+# Destructive seed – clears all graph data before re-seeding (requires explicit intent)
+seed-reset:
+	docker compose exec backend python -m scripts.seed --reset
+
+# Run graph verification and exit nonzero on failure
+verify-graph:
+	docker compose exec -T backend python -c "\
+import sys, os; \
+os.chdir('/app/knowledge_graph'); \
+from verify import run_verification; \
+from graph_service import GraphService; \
+svc = GraphService(); success = run_verification(svc); svc.close(); sys.exit(0 if success else 1)"
 
 test:
 	docker compose exec backend pytest tests/ -v
