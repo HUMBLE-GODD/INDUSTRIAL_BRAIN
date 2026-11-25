@@ -6,7 +6,7 @@ import { colors, typography } from '../theme';
 
 export type ScanStackParamList = {
   ScanMain: undefined;
-  EquipmentDetail: { equipmentId: string; name: string };
+  EquipmentDetail: { equipmentId: string; name?: string };
 };
 
 const Stack = createNativeStackNavigator<ScanStackParamList>();
@@ -30,7 +30,7 @@ export function ScanStack() {
         name="EquipmentDetail"
         component={EquipmentDetailScreen}
         options={({ route }) => ({
-          title: route.params.name,
+          title: route.params.name || route.params.equipmentId,
           headerShown: true,
         })}
       />

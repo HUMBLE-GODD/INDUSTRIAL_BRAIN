@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,94 +8,298 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { RouteProp, useRoute } from '@react-navigation/native';
 import { colors, spacing, typography, borderRadius } from '../../theme';
+import { Card } from '../../components/ui/Card';
+import { OfflineBanner } from '../../components/ui/OfflineBanner';
+import { ApiClient } from '../../api/client';
+import { Citation, GraphEvidence, QueryResponse } from '../../api/types';
 
-type Message = {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai';
-  timestamp: string;
+type RouteParams = {
+  Query: { initialQuestion?: string };
 };
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: '1',
-    text: 'Hello! I\'m your Industrial AI assistant. Ask me anything about your equipment, maintenance history, or compliance status.',
-    sender: 'ai',
-    timestamp: '11:30 PM',
-  },
-];
+type ChatMessage = {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp: string;
+  response?: QueryResponse;
+  error?: string;
+  canRetry?: boolean;
+};
 
 const SUGGESTED_QUESTIONS = [
-  'What is the status of Pump P-101?',
-  'Which supplier has the most part failures?',
-  'Show overdue inspections',
-  'What caused the last compressor failure?',
+  'Which supplier provides components linked to high or critical failure risks across several assets, and what evidence supports that?',
+  'What are the failure risks and component issues for EQ-001 (Centrifugal Pump P-101)?',
+  'What is the operating condition and remaining useful life of Boiler BLR-501 (EQ-005)?',
 ];
 
 export default function QueryScreen() {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [inputText, setInputText] = useState('');
+  const route = useRoute<RouteProp<RouteParams, 'Query'>>();
+  const flatListRef = useRef<FlatList>(null);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return;
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      text: text.trim(),
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    const aiMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      text: `Based on the knowledge graph and maintenance records, I can help you with "${text.trim()}". This feature will provide real-time answers powered by GraphRAG once the backend is connected.`,
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
       sender: 'ai',
+      text: 'Hello, Technician! I am Industrial Brain AI. Ask questions about equipment condition, supplier risk evidence, failure modes, or maintenance history.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    },
+  ]);
+  const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastQuestion, setLastQuestion] = useState<string>('');
+
+  // Handle incoming initialQuestion from other screens (e.g. EquipmentDetail)
+  useEffect(() => {
+    if (route.params?.initialQuestion) {
+      handleSend(route.params.initialQuestion);
+    }
+  }, [route.params?.initialQuestion]);
+
+  const handleSend = async (questionText?: string) => {
+    const queryStr = (questionText || inputText).trim();
+    if (!queryStr || isLoading) return;
+
+    setLastQuestion(queryStr);
+    setInputText('');
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      text: queryStr,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMsg, aiMsg]);
-    setInputText('');
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      const response = await ApiClient.query({
+        question: queryStr,
+        top_k: 5,
+        include_graph_evidence: true,
+      });
+
+      const aiMessage: ChatMessage = {
+        id: `ai-${Date.now()}`,
+        sender: 'ai',
+        text: response.answer,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        response,
+      };
+
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (err: any) {
+      const errorMessage: ChatMessage = {
+        id: `ai-err-${Date.now()}`,
+        sender: 'ai',
+        text:
+          err.message ||
+          'Decision service is currently unavailable. Check backend connection or retry.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        error: err.message || 'Service Unavailable',
+        canRetry: true,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[styles.messageBubble, item.sender === 'user' ? styles.userBubble : styles.aiBubble]}>
-      {item.sender === 'ai' && <Text style={styles.aiLabel}>🤖 Industrial Brain</Text>}
-      <Text style={[styles.messageText, item.sender === 'user' && styles.userMessageText]}>
-        {item.text}
-      </Text>
-      <Text style={styles.timestamp}>{item.timestamp}</Text>
-    </View>
-  );
+  const handleRetry = () => {
+    if (lastQuestion) {
+      handleSend(lastQuestion);
+    }
+  };
+
+  const renderMessage = ({ item }: { item: ChatMessage }) => {
+    const isUser = item.sender === 'user';
+
+    if (isUser) {
+      return (
+        <View style={styles.userBubbleWrapper}>
+          <View style={styles.userBubble}>
+            <Text style={styles.userMessageText}>{item.text}</Text>
+            <Text style={styles.userTimestamp}>{item.timestamp}</Text>
+          </View>
+        </View>
+      );
+    }
+
+    // AI Message
+    const res = item.response;
+
+    return (
+      <View style={styles.aiMessageWrapper}>
+        <Card style={[styles.aiCard, !!item.error && styles.aiCardError]}>
+          {/* AI Header with Mode Badge */}
+          <View style={styles.aiCardHeader}>
+            <Text style={styles.aiLabel}>⚡ INDUSTRIAL DECISION ENGINE</Text>
+            {res && (
+              <View
+                style={[
+                  styles.modeBadge,
+                  res.source_mode === 'deterministic'
+                    ? styles.modeBadgeDeterministic
+                    : styles.modeBadgeLlm,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.modeBadgeText,
+                    res.source_mode === 'deterministic'
+                      ? styles.modeBadgeTextDeterministic
+                      : styles.modeBadgeTextLlm,
+                  ]}
+                >
+                  MODE: {res.source_mode.toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Answer Body or Error */}
+          {item.error ? (
+            <View style={styles.errorSection}>
+              <Text style={styles.errorTitle}>⚠️ Decision Service Unavailable</Text>
+              <Text style={styles.errorDescription}>{item.text}</Text>
+              {item.canRetry && (
+                <TouchableOpacity
+                  style={styles.retryBtn}
+                  onPress={handleRetry}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.retryBtnText}>Retry Query</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.aiAnswerText}>{item.text}</Text>
+          )}
+
+          {/* Retrieved Facts */}
+          {res?.retrieved_facts && res.retrieved_facts.length > 0 && (
+            <View style={styles.subSection}>
+              <Text style={styles.subSectionTitle}>RETRIEVED FACTUAL FINDINGS</Text>
+              {res.retrieved_facts.map((fact, idx) => (
+                <Text key={idx} style={styles.factBullet}>
+                  • {fact}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {/* Verified Document Citations */}
+          {res?.citations && res.citations.length > 0 && (
+            <View style={styles.subSection}>
+              <Text style={styles.subSectionTitle}>
+                SOURCE CITATIONS ({res.citations.length})
+              </Text>
+              {res.citations.map((cite: Citation, idx: number) => (
+                <View key={idx} style={styles.citationBox}>
+                  <View style={styles.citationHeader}>
+                    <Text style={styles.citationTitle} numberOfLines={1}>
+                      📄 {cite.title}
+                    </Text>
+                    {cite.page && <Text style={styles.citationPage}>{cite.page}</Text>}
+                  </View>
+                  <Text style={styles.citationExcerpt}>"{cite.excerpt}"</Text>
+                  <Text style={styles.citationMeta}>
+                    Doc ID: {cite.document_id} • Chunk: {cite.chunk_id}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Knowledge Graph Evidence */}
+          {res?.graph_evidence && res.graph_evidence.length > 0 && (
+            <View style={styles.subSection}>
+              <Text style={styles.subSectionTitle}>
+                KNOWLEDGE GRAPH RELATIONSHIP PATHS
+              </Text>
+              {res.graph_evidence.map((evidence: GraphEvidence, idx: number) => (
+                <View key={idx} style={styles.graphBox}>
+                  <Text style={styles.graphSupplier}>
+                    Supplier: {evidence.supplier}{' '}
+                    {evidence.rating !== undefined && `(Rating: ${evidence.rating}/5)`}
+                  </Text>
+                  <Text style={styles.graphPath}>{evidence.relationship_path}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Actionable Recommendations */}
+          {res?.recommendations && res.recommendations.length > 0 && (
+            <View style={styles.subSection}>
+              <Text style={styles.subSectionTitle}>ACTIONABLE RECOMMENDATIONS</Text>
+              {res.recommendations.map((rec: string, idx: number) => (
+                <Text key={idx} style={styles.recommendationBullet}>
+                  ✓ {rec}
+                </Text>
+              ))}
+            </View>
+          )}
+
+          {/* Footer with Timestamp and Processing Duration */}
+          <View style={styles.aiFooter}>
+            {res?.processing_time_ms !== undefined && (
+              <Text style={styles.aiMeta}>
+                Processed in {res.processing_time_ms.toFixed(1)}ms
+              </Text>
+            )}
+            <Text style={styles.aiMeta}>{item.timestamp}</Text>
+          </View>
+        </Card>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <OfflineBanner onRetry={handleRetry} />
+
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {/* Header */}
+        {/* Screen Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Ask AI</Text>
-          <Text style={styles.subtitle}>Powered by GraphRAG + Gemini</Text>
+          <Text style={styles.title}>Industrial Brain AI</Text>
+          <Text style={styles.subtitle}>
+            GraphRAG decision engine • Vector search & Knowledge Graph
+          </Text>
         </View>
 
-        {/* Messages */}
+        {/* Message Stream */}
         <FlatList
+          ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           ListFooterComponent={
             messages.length <= 1 ? (
               <View style={styles.suggestionsContainer}>
-                <Text style={styles.suggestionsTitle}>Try asking:</Text>
+                <Text style={styles.suggestionsTitle}>
+                  Suggested Industrial Questions:
+                </Text>
                 {SUGGESTED_QUESTIONS.map((q, i) => (
-                  <TouchableOpacity key={i} style={styles.suggestionChip} onPress={() => sendMessage(q)}>
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.suggestionChip}
+                    onPress={() => handleSend(q)}
+                    activeOpacity={0.7}
+                  >
                     <Text style={styles.suggestionText}>{q}</Text>
                   </TouchableOpacity>
                 ))}
@@ -104,21 +308,37 @@ export default function QueryScreen() {
           }
         />
 
-        {/* Input */}
+        {/* Loading Indicator */}
+        {isLoading && (
+          <View style={styles.loadingBar}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.loadingText}>
+              Retrieving document vectors & traversing Neo4j knowledge graph...
+            </Text>
+          </View>
+        )}
+
+        {/* Input Bar */}
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.micButton}>
-            <Text style={styles.micIcon}>🎤</Text>
-          </TouchableOpacity>
           <TextInput
             style={styles.input}
-            placeholder="Ask about equipment, maintenance..."
+            placeholder="Ask about equipment, suppliers, failure risks..."
             placeholderTextColor={colors.textMuted}
             value={inputText}
             onChangeText={setInputText}
-            onSubmitEditing={() => sendMessage(inputText)}
+            onSubmitEditing={() => handleSend()}
             returnKeyType="send"
+            editable={!isLoading}
           />
-          <TouchableOpacity style={styles.sendButton} onPress={() => sendMessage(inputText)}>
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+            ]}
+            onPress={() => handleSend()}
+            disabled={!inputText.trim() || isLoading}
+            activeOpacity={0.8}
+          >
             <Text style={styles.sendIcon}>➤</Text>
           </TouchableOpacity>
         </View>
@@ -136,7 +356,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -147,48 +369,213 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.caption,
     color: colors.primary,
-    marginTop: spacing.xs,
+    marginTop: 2,
   },
   messageList: {
     padding: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.xl,
   },
-  messageBubble: {
-    maxWidth: '85%',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
+  userBubbleWrapper: {
+    alignItems: 'flex-end',
     marginBottom: spacing.md,
   },
   userBubble: {
     backgroundColor: colors.primary,
-    alignSelf: 'flex-end',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
     borderBottomRightRadius: 4,
+    maxWidth: '85%',
   },
-  aiBubble: {
+  userMessageText: {
+    ...typography.body,
+    color: colors.background,
+    fontWeight: '500',
+  },
+  userTimestamp: {
+    ...typography.caption,
+    color: 'rgba(0,0,0,0.6)',
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  aiMessageWrapper: {
+    marginBottom: spacing.lg,
+  },
+  aiCard: {
+    padding: spacing.lg,
     backgroundColor: colors.surfaceLight,
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  aiCardError: {
+    borderColor: colors.danger,
+    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  },
+  aiCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   aiLabel: {
     ...typography.caption,
     color: colors.primary,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  messageText: {
+  modeBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  modeBadgeDeterministic: {
+    backgroundColor: 'rgba(6, 182, 212, 0.15)',
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  modeBadgeLlm: {
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderWidth: 1,
+    borderColor: '#a855f7',
+  },
+  modeBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  modeBadgeTextDeterministic: {
+    color: colors.primary,
+  },
+  modeBadgeTextLlm: {
+    color: '#c084fc',
+  },
+  aiAnswerText: {
     ...typography.body,
     color: colors.text,
+    lineHeight: 22,
+    marginBottom: spacing.md,
   },
-  userMessageText: {
-    color: colors.background,
+  subSection: {
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
-  timestamp: {
+  subSectionTitle: {
     ...typography.caption,
     color: colors.textMuted,
-    marginTop: spacing.xs,
-    alignSelf: 'flex-end',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+  },
+  factBullet: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  citationBox: {
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  citationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  citationTitle: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: spacing.xs,
+  },
+  citationPage: {
+    ...typography.caption,
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  citationExcerpt: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  citationMeta: {
+    fontSize: 9,
+    color: colors.textMuted,
+  },
+  graphBox: {
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: spacing.xs,
+  },
+  graphSupplier: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  graphPath: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  recommendationBullet: {
+    ...typography.bodySmall,
+    color: colors.success,
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  aiFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  aiMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+  },
+  errorSection: {
+    paddingVertical: spacing.md,
+  },
+  errorTitle: {
+    ...typography.bodySmall,
+    color: colors.danger,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  errorDescription: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.danger,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  retryBtnText: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: '700',
   },
   suggestionsContainer: {
     marginTop: spacing.md,
@@ -197,6 +584,7 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     marginBottom: spacing.md,
+    fontWeight: '600',
   },
   suggestionChip: {
     backgroundColor: colors.surface,
@@ -210,6 +598,22 @@ const styles = StyleSheet.create({
   suggestionText: {
     ...typography.bodySmall,
     color: colors.primary,
+    lineHeight: 18,
+  },
+  loadingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.sm,
+  },
+  loadingText: {
+    ...typography.caption,
+    color: colors.primary,
+    flex: 1,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -218,36 +622,29 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
-  },
-  micButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  micIcon: {
-    fontSize: 18,
+    gap: spacing.sm,
   },
   input: {
     flex: 1,
-    height: 42,
+    height: 44,
     backgroundColor: colors.surfaceLight,
     borderRadius: borderRadius.xl,
     paddingHorizontal: spacing.lg,
-    ...typography.body,
+    ...typography.bodySmall,
     color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.sm,
+  },
+  sendButtonDisabled: {
+    opacity: 0.4,
   },
   sendIcon: {
     fontSize: 18,

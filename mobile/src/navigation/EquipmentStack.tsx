@@ -6,7 +6,7 @@ import { colors, typography } from '../theme';
 
 export type EquipmentStackParamList = {
   EquipmentList: undefined;
-  EquipmentDetail: { equipmentId: string; name: string };
+  EquipmentDetail: { equipmentId: string; name?: string };
 };
 
 const Stack = createNativeStackNavigator<EquipmentStackParamList>();
@@ -30,7 +30,7 @@ export function EquipmentStack() {
         name="EquipmentDetail"
         component={EquipmentDetailScreen}
         options={({ route }) => ({
-          title: route.params.name,
+          title: route.params.name || route.params.equipmentId,
           headerShown: true,
         })}
       />
