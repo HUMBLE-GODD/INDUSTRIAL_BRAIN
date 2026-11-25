@@ -45,6 +45,8 @@ User
 
 3. **Access Services:**
    - **Backend API:** [http://localhost:8000](http://localhost:8000)
+   - **API docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+   - **Health:** [http://localhost:8000/health](http://localhost:8000/health)
    - **Neo4j Browser:** [http://localhost:7474](http://localhost:7474) (User: `neo4j`, Pass: `industrial_brain_neo4j`)
    - **Qdrant Dashboard:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 
@@ -71,13 +73,16 @@ EPIC/
 | `make logs` | View all container logs |
 | `make logs-backend` | View only backend logs |
 | `make clean` | Stop containers and remove volumes |
-| `make seed` | Seed the database |
+| `make seed` | Seed the Neo4j demo knowledge graph |
+| `make seed-db` | Seed the canonical PostgreSQL demo equipment and maintenance history |
 | `make test` | Run tests in the backend container |
 | `make shell` | Open a bash shell in the backend container |
 | `make psql` | Open a psql shell to the PostgreSQL DB |
 | `make neo4j-shell`| Opens the Neo4j browser UI |
 
 ## 👥 Team
+
+The versioned platform API, authentication contract, equipment response examples, migration notes, and demo-data instructions are documented in [`backend/README.md`](backend/README.md).
 
 - **M1:** Team Member 1
 - **M2:** Team Member 2

@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
     ports:
       - "8000:8000"
     depends_on:
@@ -16,7 +17,14 @@ services:
       - .env
     volumes:
       - ./backend/app:/app/app
+      - "./Knowledge Graph Setup:/opt/knowledge-graph:ro"
       - upload_data:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
     networks:
       - epic-network

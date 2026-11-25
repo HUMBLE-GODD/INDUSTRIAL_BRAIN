@@ -1,4 +1,4 @@
-.PHONY: dev down restart logs logs-backend clean seed test shell psql neo4j-shell setup
+.PHONY: dev down restart logs logs-backend clean seed seed-db test shell psql neo4j-shell setup
 
 dev:
 	docker compose up --build
@@ -18,7 +18,10 @@ clean:
 	docker compose down -v
 
 seed:
-	docker compose exec backend python -m scripts.seed
+	docker compose exec backend python /opt/knowledge-graph/seed.py
+
+seed-db:
+	docker compose exec backend python -m scripts.seed_demo
 
 test:
 	docker compose exec backend pytest tests/ -v

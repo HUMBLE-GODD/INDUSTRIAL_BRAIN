@@ -1,10 +1,13 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy import text
 
 from app.core.config import get_settings
+from app.core.errors import install_error_handlers
+from app.api.v1.schemas import DocumentStatus
 from app.db.session import get_engine
 from app.db.neo4j import get_neo4j_driver, close_neo4j_driver
 from app.db.qdrant import get_qdrant_client, init_qdrant
@@ -60,6 +63,33 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
 )
+install_error_handlers(app)
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        openapi_version=app.openapi_version,
+        routes=app.routes,
+    )
+    component_schemas = schema.setdefault("components", {}).setdefault("schemas", {})
+    component_schemas.setdefault(
+        "DocumentStatus",
+        {
+            "title": "DocumentStatus",
+            "type": "string",
+            "enum": [status.value for status in DocumentStatus],
+            "description": "Document processing lifecycle status.",
+        },
+    )
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,41 +101,42 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
-@app.get("/health")
-async def health_check():
-    db_status = "disconnected"
+@app.get("/health", tags=["health"], summary="Check service dependencies")
+async def health_check(response: Response):
+    services = {
+        "database": "disconnected",
+        "neo4j": "disconnected",
+        "qdrant": "disconnected",
+    }
     try:
         engine = get_engine()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-            db_status = "connected"
-    except:
-        pass
+        services["database"] = "connected"
+    except Exception as exc:
+        logger.warning("Database health check failed: %s", exc)
 
-    neo4j_status = "disconnected"
     try:
         neo4j_driver = get_neo4j_driver()
         await neo4j_driver.verify_connectivity()
-        neo4j_status = "connected"
-    except:
-        pass
+        services["neo4j"] = "connected"
+    except Exception as exc:
+        logger.warning("Neo4j health check failed: %s", exc)
 
-    qdrant_status = "disconnected"
     try:
         qdrant_client = get_qdrant_client()
         await qdrant_client.get_collections()
-        qdrant_status = "connected"
-    except:
-        pass
+        services["qdrant"] = "connected"
+    except Exception as exc:
+        logger.warning("Qdrant health check failed: %s", exc)
+
+    healthy = all(service_status == "connected" for service_status in services.values())
+    response.status_code = 200 if healthy else 503
 
     return {
-        "status": "ok",
+        "status": "ok" if healthy else "degraded",
         "version": settings.VERSION,
-        "services": {
-            "database": db_status,
-            "neo4j": neo4j_status,
-            "qdrant": qdrant_status
-        }
+        "services": services,
     }
 
 @app.websocket("/ws/events")
