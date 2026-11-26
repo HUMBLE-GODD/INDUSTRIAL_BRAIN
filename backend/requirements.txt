@@ -7,7 +7,7 @@ psycopg2-binary
 pydantic
 pydantic-settings
 python-dotenv
-neo4j
+neo4j>=5.0
 qdrant-client
 sentence-transformers
 pytest
