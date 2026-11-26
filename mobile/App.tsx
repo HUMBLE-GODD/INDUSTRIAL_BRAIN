@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { AuthProvider } from './src/context/AuthContext';
 import { colors } from './src/theme';
 
 // Custom dark theme for React Navigation
@@ -23,10 +24,12 @@ const IndustrialDarkTheme = {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer theme={IndustrialDarkTheme}>
-        <StatusBar style="light" backgroundColor={colors.background} />
-        <AppNavigator />
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer theme={IndustrialDarkTheme}>
+          <StatusBar style="light" />
+          <AppNavigator />
+        </NavigationContainer>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

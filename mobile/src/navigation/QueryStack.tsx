@@ -4,7 +4,7 @@ import QueryScreen from '../screens/query/QueryScreen';
 import { colors } from '../theme';
 
 export type QueryStackParamList = {
-  QueryMain: undefined;
+  QueryMain: { initialQuestion?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<QueryStackParamList>();
