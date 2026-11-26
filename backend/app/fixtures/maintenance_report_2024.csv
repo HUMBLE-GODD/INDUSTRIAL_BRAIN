@@ -1,0 +1,13 @@
+work_order_id,equipment_id,component,failure_mode,root_cause,technician,date,downtime_hours,parts_replaced,cost_usd,supplier_code,status
+WO-2024-001,P-101,Mechanical seal assembly,Loss of containment,Dry running due to suction loss,Ravi Sharma,2024-01-15,6.5,MCS-4420,840.00,SUP-001,completed
+WO-2024-002,C-205,Compressor valve,High discharge temperature,Broken suction valve plate,Meena Pillai,2024-01-28,12.0,VLV-C205-S,1200.00,SUP-005,completed
+WO-2024-003,P-101,Bearing set drive-end,Vibration >7.5 mm/s RMS,Inadequate lubrication interval exceeded,Ravi Sharma,2024-02-10,4.0,BRG-6309-2Z,320.00,SUP-002,completed
+WO-2024-004,HX-301,Heat exchanger tubes,Reduced heat transfer,Fouling from process fluid,Anil Kumar,2024-02-22,8.0,TUBE-HX301-TI,2200.00,SUP-006,completed
+WO-2024-005,P-102,Impeller,Cavitation noise and reduced flow,Low NPSH available,Meena Pillai,2024-03-05,5.5,IMP-250-SS,980.00,SUP-001,completed
+WO-2024-006,C-205,Mechanical seal,Shaft leakage,Seal face misalignment after last overhaul,Anil Kumar,2024-03-18,9.0,MCS-C205-K,1100.00,SUP-001,completed
+WO-2024-007,P-101,Coupling insert,Vibration spikes at start-up,Worn elastomeric insert,Ravi Sharma,2024-04-02,2.5,CPI-100-PU,180.00,SUP-004,completed
+WO-2024-008,HX-301,Shell gasket,Fluid leak at shell flange,Gasket creep at high temperature,Anil Kumar,2024-04-14,6.0,GSK-HX301-G,420.00,SUP-007,completed
+WO-2024-009,P-101,Mechanical seal assembly,Seal drip rate >3 drops/min,End of service life (18-month MTBF reached),Ravi Sharma,2024-07-20,5.0,MCS-4420,840.00,SUP-001,completed
+WO-2024-010,C-205,Inlet filter element,High differential pressure across filter,Filter element blocked by particulates,Meena Pillai,2024-08-03,1.5,FLT-C205-E,95.00,SUP-008,completed
+WO-2024-011,P-102,Shaft sleeve,Scoring on sleeve OD,Abrasive particles in process fluid,Ravi Sharma,2024-09-10,7.0,SLS-30-SS,560.00,SUP-003,completed
+WO-2024-012,P-101,Bearing set non-drive-end,Elevated bearing temperature (78 C),Contaminated grease during last lubrication,Ravi Sharma,2024-10-05,4.5,BRG-6307-2Z,290.00,SUP-002,completed

@@ -19,4 +19,4 @@ aiosqlite
 rich
 httpx
 websockets
-rich
+pypdf

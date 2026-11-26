@@ -1,0 +1,84 @@
+PUMP SYSTEM OPERATIONS AND MAINTENANCE MANUAL
+
+Document: IB-MAN-001
+Revision: 1.0
+License: Original work created for the Industrial Brain demo — freely usable within this project.
+
+================================================================================
+SECTION 1 — OVERVIEW
+================================================================================
+
+This manual covers the centrifugal pump assembly P-101 installed in Facility A,
+cooling-water circuit CW-01. P-101 is a horizontally-split-case centrifugal pump
+rated at 250 m³/h at 45 m head, driven by a 55 kW induction motor.
+
+Supplier: AquaFlow Systems Ltd (supplier code: SUP-001)
+Component: Mechanical seal assembly (part SKU: MCS-4420)
+Criticality: HIGH — single point of failure on CW-01
+
+================================================================================
+SECTION 2 — SCHEDULED MAINTENANCE INTERVALS
+================================================================================
+
+2.1 Daily Checks (Operator)
+   - Verify suction and discharge pressure gauges are within range (1.5–4.5 bar).
+   - Check bearing housing temperature; must not exceed 70 °C.
+   - Inspect mechanical seal for drips; zero leakage is acceptable; >3 drops/min
+     requires immediate work order.
+   - Record vibration reading from sensor VS-P101; alarm threshold is 7.5 mm/s RMS.
+
+2.2 Quarterly Maintenance (Technician — every 90 days)
+   - Lubricate bearing housing with Mobil SHC 639 grease, 20 g per bearing.
+   - Pump P-101 requires bearing lubrication every 90 days using the
+     manufacturer-specified lubricant grade NLGI-2.
+   - Inspect coupling alignment; maximum allowable angular misalignment: 0.05 mm/m.
+   - Replace mechanical seal if wear exceeds 1.5 mm measured at the carbon face.
+
+2.3 Annual Overhaul (Maintenance team)
+   - Full disassembly and inspection of impeller, wear rings, and shaft sleeve.
+   - Hydrostatic test at 1.5× rated discharge pressure.
+   - Re-align motor and pump shafts to within 0.02 mm TIR.
+
+================================================================================
+SECTION 3 — COMMON FAILURE MODES
+================================================================================
+
+3.1 Mechanical Seal Failure
+   Failure mode: Loss of containment / shaft leakage
+   Root cause:   Dry running (suction loss), thermal shock, misalignment
+   Component:    Mechanical seal assembly (MCS-4420), supplied by AquaFlow Systems Ltd
+   Supplier code: SUP-001
+   MTBF under normal operation: 18 months
+   Corrective action: Isolate pump, replace seal kit per IB-WI-MCS-4420.
+
+3.2 Bearing Failure
+   Failure mode: High vibration, elevated temperature, noise
+   Root cause:   Inadequate lubrication, contaminated grease, overloading
+   MTBF: 36 months when lubricated on schedule
+   Corrective action: Replace bearings; check alignment and balance.
+
+3.3 Impeller Erosion
+   Failure mode: Reduced flow, cavitation noise
+   Root cause:   Particulates in fluid, low NPSH available
+   Corrective action: Replace impeller; install upstream strainer with 500 µm mesh.
+
+================================================================================
+SECTION 4 — SAFETY
+================================================================================
+
+- De-energize and lock-out/tag-out motor before any mechanical work (IB-HS-001).
+- Drain and flush pump before opening casing; CW-01 may contain biocide.
+- Use PPE: safety glasses, nitrile gloves, steel-toe boots.
+
+================================================================================
+SECTION 5 — PARTS LIST
+================================================================================
+
+Part Description              SKU          Supplier        Lead Time (days)
+-------------------------------------------------------------------------------------
+Mechanical seal assembly      MCS-4420     AquaFlow SUP-001   14
+Bearing set (drive end)       BRG-6309-2Z  GlobalBear SUP-002  7
+Bearing set (non-drive end)   BRG-6307-2Z  GlobalBear SUP-002  7
+Impeller 250mm                IMP-250-SS   AquaFlow SUP-001   21
+Shaft sleeve                  SLS-30-SS    InduParts  SUP-003  10
+Coupling insert               CPI-100-PU   FlexCoup   SUP-004   5
