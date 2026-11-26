@@ -2,10 +2,13 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.core.config import get_settings
+from app.core.errors import install_error_handlers
+from app.api.v1.schemas import DocumentStatus
 from app.db.session import get_engine
 from app.db.neo4j import get_neo4j_driver, close_neo4j_driver
 from app.db.qdrant import close_qdrant_client, get_qdrant_client, init_qdrant
@@ -66,6 +69,33 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
 )
+install_error_handlers(app)
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        openapi_version=app.openapi_version,
+        routes=app.routes,
+    )
+    schemas = schema.setdefault("components", {}).setdefault("schemas", {})
+    schemas.setdefault(
+        "DocumentStatus",
+        {
+            "title": "DocumentStatus",
+            "type": "string",
+            "enum": [status.value for status in DocumentStatus],
+            "description": "Document processing lifecycle status.",
+        },
+    )
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 app.add_middleware(
     CORSMiddleware,

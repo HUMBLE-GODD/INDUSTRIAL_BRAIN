@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
-from sqlalchemy import String, Integer, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum
+from sqlalchemy import CheckConstraint, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, JSON, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.base import Base
@@ -32,13 +32,15 @@ class User(Base):
 class Equipment(Base):
     __tablename__ = "equipment"
     
-    id: Mapped[str] = mapped_column(String, primary_key=True) # E.g., 'P-101'
+    id: Mapped[str] = mapped_column(String, primary_key=True)  # Canonical ID, e.g. 'EQ-001'
     name: Mapped[str] = mapped_column(String, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    model: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     location: Mapped[str] = mapped_column(String, nullable=False)
     manufacturer: Mapped[str] = mapped_column(String, nullable=True)
     install_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     criticality: Mapped[str] = mapped_column(String, nullable=False, default="Medium")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="operational", server_default="operational")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=get_utc_now, onupdate=get_utc_now)
 
@@ -47,6 +49,35 @@ class Equipment(Base):
     failures: Mapped[List["Failure"]] = relationship(back_populates="equipment", cascade="all, delete-orphan")
     maintenance_records: Mapped[List["MaintenanceRecord"]] = relationship(back_populates="equipment", cascade="all, delete-orphan")
     compliance_checklists: Mapped[List["ComplianceChecklist"]] = relationship(back_populates="equipment", cascade="all, delete-orphan")
+    observations: Mapped[List["FieldObservation"]] = relationship(back_populates="equipment", cascade="all, delete-orphan")
+
+
+class FieldObservation(Base):
+    """An observation submitted from the field; it is not a work order."""
+
+    __tablename__ = "field_observations"
+    __table_args__ = (
+        CheckConstraint(
+            "severity IN ('low', 'medium', 'high', 'critical')",
+            name="ck_field_observations_severity",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=get_uuid)
+    equipment_id: Mapped[str] = mapped_column(
+        String, ForeignKey("equipment.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reported_by: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    category: Mapped[str] = mapped_column(String(80), nullable=False)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)
+    note: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="submitted", server_default="submitted")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=get_utc_now, nullable=False)
+
+    equipment: Mapped["Equipment"] = relationship(back_populates="observations")
+    reporter: Mapped["User"] = relationship()
 
 class DocumentStatus(str, enum.Enum):
     UPLOADED = "uploaded"
@@ -61,7 +92,11 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     file_type: Mapped[str] = mapped_column(String, nullable=False)
     file_path: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[DocumentStatus] = mapped_column(Enum(DocumentStatus), default=DocumentStatus.UPLOADED, nullable=False)
+    status: Mapped[DocumentStatus] = mapped_column(
+        Enum(DocumentStatus, values_callable=lambda members: [member.value for member in members]),
+        default=DocumentStatus.UPLOADED,
+        nullable=False,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=get_utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=get_utc_now, onupdate=get_utc_now)
 
