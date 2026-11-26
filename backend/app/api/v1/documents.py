@@ -12,10 +12,10 @@ GET    /api/v1/documents/search          – semantic chunk search
 
 from __future__ import annotations
 
+import hashlib
 import logging
-import uuid
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +27,7 @@ from app.api.v1.documents_schemas import (
     DocumentUploadResponse,
     SearchResponse,
 )
-from app.core.auth import get_optional_current_user
+from app.api.v1.dependencies import get_current_user
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.database import DocumentStatus
@@ -99,14 +99,14 @@ async def upload_document(
     chunk_size: int = Form(512, ge=64, le=4096, description="Characters per chunk"),
     chunk_overlap: int = Form(64, ge=0, le=512, description="Overlap between adjacent chunks"),
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_optional_current_user),
+    _user=Depends(get_current_user),
 ):
     """
     Accept a document, extract text, chunk it, embed, and upsert into Qdrant.
 
     - Supported types: PDF, plain text (.txt), CSV
     - Max size: 50 MB
-    - Re-uploading the same file is idempotent at the vector level (upsert by stable chunk ID)
+    - Re-uploading identical content with the same title reuses its document and chunk IDs
     """
     settings = get_settings()
 
@@ -123,29 +123,48 @@ async def upload_document(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
     safe_name = sanitize_filename(filename)
-    document_id = str(uuid.uuid4())
     doc_title = title or Path(safe_name).stem
-
-    # --- Persist file to disk ---
-    upload_dir = Path(settings.UPLOAD_DIR)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    dest = upload_dir / f"{document_id}_{safe_name}"
-    dest.write_bytes(data)
-
+    fingerprint = hashlib.sha256(
+        file_type.encode("ascii") + b"\0" + doc_title.encode("utf-8") + b"\0" + data
+    ).hexdigest()
+    document_id = fingerprint
     repo = DocumentRepository(db)
 
-    # --- Create DB record ---
-    doc = await repo.create(
-        document_id=document_id,
-        title=doc_title,
-        file_type=file_type,
-        file_path=str(dest),
-        status=DocumentStatus.UPLOADED,
-    )
+    # Content and title identity make repeated uploads address the same SQL
+    # record and deterministic Qdrant points. Processed content needs no reindex.
+    doc = await repo.get_by_id(document_id)
+    is_retry = doc is not None
+    if doc is not None:
+        existing_status = doc.status.value if hasattr(doc.status, "value") else doc.status
+        if existing_status == DocumentStatus.PROCESSED.value:
+            return _doc_to_upload_response(doc)
+        if existing_status == DocumentStatus.PROCESSING.value:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This document is already being processed.",
+            )
+    else:
+        # --- Persist file and create the DB record ---
+        upload_dir = Path(settings.UPLOAD_DIR)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        dest = upload_dir / f"{document_id}_{safe_name}"
+        dest.write_bytes(data)
+        doc = await repo.create(
+            document_id=document_id,
+            title=doc_title,
+            file_type=file_type,
+            file_path=str(dest),
+            status=DocumentStatus.UPLOADED,
+        )
 
     # --- Extract, chunk, embed, index (async pipeline) ---
     await repo.update_status(document_id, DocumentStatus.PROCESSING)
     try:
+        # A failed prior upsert may have left some points behind. Clear this
+        # document's points before retrying; deterministic IDs make the retry
+        # safe even if the subsequent upsert fails again.
+        if is_retry:
+            await delete_document_vectors(document_id)
         chunks = extract_and_chunk(
             file_type=file_type,
             data=data,
@@ -184,68 +203,11 @@ async def upload_document(
 )
 async def list_documents(
     db: AsyncSession = Depends(get_db),
-    _user=Depends(get_optional_current_user),
+    _user=Depends(get_current_user),
 ):
     repo = DocumentRepository(db)
     docs = await repo.list_all()
     return [_doc_to_list_item(d) for d in docs]
-
-
-# ---------------------------------------------------------------------------
-# Get one
-# ---------------------------------------------------------------------------
-
-
-@router.get(
-    "/{document_id}",
-    response_model=DocumentDetail,
-    summary="Fetch metadata for a single document.",
-)
-async def get_document(
-    document_id: str,
-    db: AsyncSession = Depends(get_db),
-    _user=Depends(get_optional_current_user),
-):
-    repo = DocumentRepository(db)
-    doc = await repo.get_by_id(document_id)
-    if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
-    return _doc_to_detail(doc)
-
-
-# ---------------------------------------------------------------------------
-# Delete
-# ---------------------------------------------------------------------------
-
-
-@router.delete(
-    "/{document_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete a document and its Qdrant vectors.",
-)
-async def delete_document(
-    document_id: str,
-    db: AsyncSession = Depends(get_db),
-    _user=Depends(get_optional_current_user),
-):
-    repo = DocumentRepository(db)
-    doc = await repo.get_by_id(document_id)
-    if doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
-
-    # Remove Qdrant vectors first so a partial failure can be retried
-    try:
-        await delete_document_vectors(document_id)
-    except Exception as exc:
-        logger.warning("Vector deletion failed for '%s': %s", document_id, exc)
-
-    deleted = await repo.delete(document_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete document record.",
-        )
-    # 204 — no body
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +223,7 @@ async def delete_document(
 async def search_documents(
     q: str = Query(..., min_length=1, description="Natural-language query"),
     limit: int = Query(10, ge=1, le=50, description="Number of results to return"),
-    _user=Depends(get_optional_current_user),
+    _user=Depends(get_current_user),
 ):
     """
     Embed the query and retrieve the top-*limit* matching chunks from Qdrant.
@@ -296,3 +258,64 @@ async def search_documents(
         )
 
     return SearchResponse(results=results, total=len(results))
+
+
+# ---------------------------------------------------------------------------
+# Get one
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{document_id}",
+    response_model=DocumentDetail,
+    summary="Fetch metadata for a single document.",
+)
+async def get_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    repo = DocumentRepository(db)
+    doc = await repo.get_by_id(document_id)
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    return _doc_to_detail(doc)
+
+
+# ---------------------------------------------------------------------------
+# Delete
+# ---------------------------------------------------------------------------
+
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a document and its Qdrant vectors.",
+)
+async def delete_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(get_current_user),
+):
+    repo = DocumentRepository(db)
+    doc = await repo.get_by_id(document_id)
+    if doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    # Remove Qdrant vectors before deleting metadata so a failure is retryable.
+    try:
+        await delete_document_vectors(document_id)
+    except Exception as exc:
+        logger.warning("Vector deletion failed for '%s': %s", document_id, type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Vector storage is unavailable; the document was not deleted. Retry later.",
+        ) from exc
+
+    deleted = await repo.delete(document_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete document record.",
+        )
+    # 204 — no body

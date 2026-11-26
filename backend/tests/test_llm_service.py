@@ -93,6 +93,34 @@ async def test_llm_service_gemini_primary_success(sample_citations, sample_graph
 
 
 @pytest.mark.asyncio
+async def test_provider_answer_and_recommendations_drop_unverified_chunk_markers(
+    sample_citations, sample_graph_evidence
+):
+    service = LLMService(gemini_api_key="valid-test-gemini-key", groq_api_key="")
+    mock_response = MagicMock()
+    mock_response.text = (
+        "Risk is supported by [Chunk ID: CHK-1], with extra detail [Chunk ID: FAKE-999].\n\n"
+        "RECOMMENDATIONS:\n- Review the record [Chunk ID: MISSING-42]."
+    )
+
+    with patch("google.genai.Client") as mock_client_cls:
+        mock_client = MagicMock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_client_cls.return_value = mock_client
+
+        result = await service.generate_response(
+            question="Which supplier components fail?",
+            citations=sample_citations,
+            graph_evidence=sample_graph_evidence,
+        )
+
+    assert "[Chunk ID: CHK-1]" in result.answer
+    assert "FAKE-999" not in result.answer
+    assert all("MISSING-42" not in recommendation for recommendation in result.recommendations)
+    assert [citation.chunk_id for citation in result.validated_citations] == ["CHK-1"]
+
+
+@pytest.mark.asyncio
 async def test_llm_service_groq_fallback_when_gemini_fails(sample_citations, sample_graph_evidence):
     """Verify Groq fallback occurs seamlessly when Gemini raises an exception."""
     service = LLMService(gemini_api_key="gemini-key", groq_api_key="groq-key")

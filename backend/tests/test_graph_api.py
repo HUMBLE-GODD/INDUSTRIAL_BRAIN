@@ -21,9 +21,12 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # Ensure "Knowledge Graph Setup" is in sys.path
-_kg_path = Path(__file__).resolve().parents[2] / "Knowledge Graph Setup"
-if str(_kg_path) not in sys.path:
-    sys.path.insert(0, str(_kg_path))
+for _kg_path in (
+    Path(__file__).resolve().parents[2] / "Knowledge Graph Setup",
+    Path("/opt/knowledge-graph"),
+):
+    if _kg_path.is_dir() and str(_kg_path) not in sys.path:
+        sys.path.insert(0, str(_kg_path))
 
 # Use SQLite for tests if asyncpg is not available
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
@@ -108,6 +111,7 @@ with patch("app.db.session.create_async_engine") as _mock_engine:
 
 import pytest
 from fastapi.testclient import TestClient
+from app.api.v1.dependencies import get_current_user
 import app.db.neo4j as neo4j_db
 
 
@@ -123,8 +127,12 @@ def client():
         mock_driver.verify_connectivity = AsyncMock(return_value=None)
         mock_driver_cls.driver.return_value = mock_driver
 
-        with TestClient(fastapi_app, raise_server_exceptions=False) as c:
-            yield c
+        fastapi_app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
+        try:
+            with TestClient(fastapi_app, raise_server_exceptions=False) as c:
+                yield c
+        finally:
+            fastapi_app.dependency_overrides.pop(get_current_user, None)
 
 
 # ---------------------------------------------------------------------------
@@ -174,6 +182,59 @@ class TestGraphSummary:
 
 
 # ---------------------------------------------------------------------------
+# /api/v1/graph/visualization
+# ---------------------------------------------------------------------------
+
+class TestGraphVisualization:
+    def test_returns_normalized_nodes_and_edges(self, client):
+        from app.graph.service import GraphQueryService
+
+        visualization = {
+            "nodes": [
+                {
+                    "id": "4:node-1",
+                    "domain_id": "EQ-001",
+                    "type": "Equipment",
+                    "label": "Centrifugal Pump P-101",
+                    "labels": ["Equipment"],
+                    "properties": {"equipment_id": "EQ-001", "name": "Centrifugal Pump P-101"},
+                },
+                {
+                    "id": "4:node-2",
+                    "domain_id": "CMP-001",
+                    "type": "Component",
+                    "label": "Mechanical Seal",
+                    "labels": ["Component"],
+                    "properties": {"component_id": "CMP-001", "name": "Mechanical Seal"},
+                },
+            ],
+            "edges": [
+                {
+                    "id": "5:relationship-1",
+                    "source": "4:node-1",
+                    "target": "4:node-2",
+                    "type": "HAS_COMPONENT",
+                    "properties": {},
+                }
+            ],
+        }
+        svc = GraphQueryService()
+        with patch.object(svc, "get_graph_visualization", new=AsyncMock(return_value=visualization)):
+            from app.api.v1 import graph as graph_module
+
+            with patch.object(graph_module, "_service", svc):
+                response = client.get("/api/v1/graph/visualization")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["nodes"][0]["domain_id"] == "EQ-001"
+        assert data["nodes"][0]["type"] == "Equipment"
+        assert data["edges"][0]["source"] == data["nodes"][0]["id"]
+        assert data["edges"][0]["target"] == data["nodes"][1]["id"]
+        assert data["edges"][0]["type"] == "HAS_COMPONENT"
+
+
+# ---------------------------------------------------------------------------
 # /api/v1/graph/supplier-risks
 # ---------------------------------------------------------------------------
 
@@ -192,8 +253,11 @@ class TestSupplierRisks:
             "affected_component_names": ["Shell Gasket", "Inlet Valve", "Safety Valve"],
             "failure_mode_ids": ["FM-001", "FM-004"],
             "failure_mode_names": ["Seal Leakage", "Valve Seizure"],
-            "severities": ["high", "critical", "critical"],
-            "failure_link_count": 3,
+            "risk_links": [
+                {"component_id": "CMP-005", "failure_mode_id": "FM-001", "severity": "high"},
+                {"component_id": "CMP-006", "failure_mode_id": "FM-004", "severity": "critical"},
+                {"component_id": "CMP-011", "failure_mode_id": "FM-004", "severity": "critical"},
+            ],
         }
     ]
 
@@ -221,7 +285,11 @@ class TestSupplierRisks:
         mixed_risks = [
             {
                 **self._SAMPLE_RISKS[0],
-                "severities": ["medium", "high", "critical"],
+                "risk_links": [
+                    {"component_id": "CMP-005", "failure_mode_id": "FM-001", "severity": "medium"},
+                    {"component_id": "CMP-006", "failure_mode_id": "FM-004", "severity": "high"},
+                    {"component_id": "CMP-011", "failure_mode_id": "FM-004", "severity": "critical"},
+                ],
             }
         ]
         with patch.object(svc, "get_supplier_risks", new=AsyncMock(return_value=mixed_risks)):
@@ -293,7 +361,10 @@ class TestRCA:
                 resp = client.get("/api/v1/rca/EQ-999")
                 assert resp.status_code == 404
                 body = resp.json()
-                assert "EQ-999" in body["detail"]
+                message = body.get("detail") or body.get("error", {}).get("message", "")
+                assert "EQ-999" in message
+                assert "EQ-101" in message
+                assert "EQ-103" in message
 
     def test_rca_invalid_id_format(self, client):
         """Non-canonical IDs are rejected with 422 before hitting Neo4j."""

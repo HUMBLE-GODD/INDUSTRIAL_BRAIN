@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.api.v1.dependencies import get_current_user
 from app.schemas.query import QueryRequest, QueryResponse
 from app.services.graph_evidence_adapter import GraphServiceUnavailableError
 from app.services.query_service import QueryService
@@ -26,11 +27,12 @@ def get_query_service() -> QueryService:
     description=(
         "Combines vector search over indexed documentation and graph traversal over equipment-supplier risks. "
         "Provides grounded answer, verified citations, and actionable recommendations. "
-        "Note: Implemented without auth dependency for this independent PR pending Tatvik's platform auth merge."
+        "Requires a valid bearer token and returns only the evidence retrieved for this request."
     ),
 )
 async def query_endpoint(
     request: QueryRequest,
+    _current_user=Depends(get_current_user),
     service: QueryService = Depends(get_query_service),
 ) -> QueryResponse:
     try:

@@ -98,7 +98,7 @@ def test_production_rejects_missing_or_development_jwt_secret():
         Settings(APP_ENV="production", JWT_SECRET="")
     with pytest.raises(ValueError):
         Settings(APP_ENV="production", JWT_SECRET="dev-only-not-for-production")
-    assert Settings(APP_ENV="production", JWT_SECRET="unique-test-secret").APP_ENV == "production"
+    assert Settings(APP_ENV="production", JWT_SECRET="unique-test-secret-0123456789abcdef").APP_ENV == "production"
 
 
 async def _register(client: httpx.AsyncClient, email: str = TEST_EMAIL) -> dict:
@@ -182,7 +182,7 @@ async def test_equipment_list_detail_history_and_missing_equipment(
     assert listing.status_code == 200, listing.text
     page = listing.json()
     assert {"items", "page", "page_size", "total", "pages"} <= set(page)
-    assert (page["page"], page["page_size"], page["total"], page["pages"]) == (1, 20, 5, 1)
+    assert (page["page"], page["page_size"], page["total"], page["pages"]) == (1, 20, 8, 1)
     assert [item["id"] for item in page["items"]] == [
         item["id"] for item in DEMO_EQUIPMENT
     ]
@@ -408,9 +408,9 @@ async def test_demo_seed_helper_is_repeatable(
             (await session.scalars(select(Equipment.id).order_by(Equipment.id))).all()
         )
 
-    assert equipment_count == len(DEMO_EQUIPMENT) == 5
-    assert maintenance_count == 4
-    assert equipment_ids == [f"EQ-{number:03}" for number in range(1, 6)]
+    assert equipment_count == len(DEMO_EQUIPMENT) == 8
+    assert maintenance_count == 13
+    assert equipment_ids == [item["id"] for item in DEMO_EQUIPMENT]
 
 
 def test_alembic_upgrade_is_repeatable_on_fresh_sqlite_database(tmp_path: Path):

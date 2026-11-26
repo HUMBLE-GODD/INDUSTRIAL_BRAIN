@@ -1,3 +1,5 @@
+import type { EquipmentResponse } from '../lib/api/types';
+
 export type EquipmentCriticality = 'critical' | 'high' | 'medium' | 'low';
 export type EquipmentStatus = 'operational' | 'maintenance';
 
@@ -19,6 +21,15 @@ export type Equipment = {
   components: string[];
   failureModes: { name: string; severity: EquipmentCriticality }[];
 };
+
+/** Shared display shape for live API records and the explicitly local demo fixtures. */
+export type EquipmentViewRecord = Omit<EquipmentResponse, 'created_at' | 'updated_at'> &
+  Partial<Pick<EquipmentResponse, 'created_at' | 'updated_at'>> & {
+    tag?: string;
+    demoHealthScore?: number;
+    components?: string[];
+    failureModes?: { name: string; severity: EquipmentCriticality }[];
+  };
 
 /**
  * Local demo records mirror the equipment metadata and component/failure links
@@ -107,3 +118,23 @@ export const DEMO_EQUIPMENT: Equipment[] = [
     failureModes: [{ name: 'Pressure Buildup', severity: 'critical' }],
   },
 ];
+
+export function toEquipmentViewRecord(item: Equipment): EquipmentViewRecord {
+  return {
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    model: item.model,
+    manufacturer: item.manufacturer,
+    status: item.status,
+    criticality: item.criticality,
+    location: item.location,
+    install_date: item.installDate,
+    tag: item.tag,
+    demoHealthScore: item.demoHealthScore,
+    components: item.components,
+    failureModes: item.failureModes,
+  };
+}
+
+export const DEMO_EQUIPMENT_RECORDS = DEMO_EQUIPMENT.map(toEquipmentViewRecord);

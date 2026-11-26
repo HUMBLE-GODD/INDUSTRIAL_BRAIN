@@ -1,4 +1,4 @@
-.PHONY: dev down restart logs logs-backend clean seed seed-db seed-reset verify-graph test shell psql neo4j-shell setup
+.PHONY: dev down restart logs logs-backend clean seed seed-db seed-docs seed-reset verify-graph test shell psql neo4j-shell setup demo
 
 dev:
 	docker compose up --build
@@ -23,6 +23,9 @@ seed:
 seed-db:
 	docker compose exec backend python -m scripts.seed_demo
 
+seed-docs:
+	docker compose exec backend python -m app.fixtures.seed_fixtures
+
 seed-reset:
 	docker compose exec backend python /opt/knowledge-graph/seed.py --reset
 
@@ -30,7 +33,7 @@ verify-graph:
 	docker compose exec backend python /opt/knowledge-graph/verify.py
 
 test:
-	docker compose exec backend pytest tests/ -v
+	docker compose exec -e PYTHONPATH=/opt/knowledge-graph backend pytest tests/ -v
 
 shell:
 	docker compose exec backend bash
@@ -43,3 +46,9 @@ neo4j-shell:
 
 setup:
 	./scripts/setup_dev.sh
+
+demo:
+	./scripts/setup_dev.sh
+	$(MAKE) seed-db
+	$(MAKE) seed
+	$(MAKE) seed-docs

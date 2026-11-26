@@ -14,6 +14,7 @@ import type { AiCitation } from "@/lib/api/types";
 type ConversationMessage = { role: "user" | "assistant"; content: string; timestamp: string; relatedAssets?: string[]; citations?: AiCitation[]; disclaimer?: string | null; sourceMode?: string };
 
 export default function AiQueryPage() {
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ConversationMessage[]>(
     process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true" ? mockAiQueryData.sampleConversation as ConversationMessage[] : []
@@ -35,6 +36,40 @@ export default function AiQueryPage() {
     setQuery("");
     setIsLoading(true);
     setError(null);
+    if (demoEnabled) {
+      const normalized = q.toLowerCase();
+      let content = "No matching example is in the local fixture. Try a question about EQ-001, EpsilonValves, bearing overheating, or the seeded equipment links.";
+      let relatedAssets: string[] = [];
+
+      if (normalized.includes("epsilon") || normalized.includes("supplier") || normalized.includes("risk")) {
+        content = "The synthetic graph fixture links low-rated supplier EpsilonValves Ltd (SUP-005) to three assets: EQ-002 (Heat Exchanger HX-202), EQ-003 (Compressor C-305), and EQ-005 (Boiler BLR-501). Its linked components include Shell Gasket, Inlet Valve, and Safety Relief Valve; the fixture has high and critical failure-mode links. This is graph seed data, not a live plant finding.";
+        relatedAssets = ["SUP-005 · EpsilonValves Ltd", "EQ-002", "EQ-003", "EQ-005"];
+      } else if (normalized.includes("bearing")) {
+        content = "The synthetic graph links Bearing Overheating (FM-002) to CMP-002 on EQ-001 and CMP-010 on EQ-004. The fixture marks this failure mode as critical; check the source records before using it operationally.";
+        relatedAssets = ["FM-002 · Bearing Overheating", "CMP-002 · EQ-001", "CMP-010 · EQ-004"];
+      } else if (normalized.includes("boiler") || normalized.includes("eq-005")) {
+        content = "The seeded graph links Boiler BLR-501 (EQ-005) to Safety Relief Valve (CMP-011) and Water Pump (CMP-012). CMP-011 is linked to the Pressure Buildup failure mode (FM-005), marked critical in the fixture.";
+        relatedAssets = ["EQ-005 · Boiler BLR-501", "CMP-011 · Safety Relief Valve", "FM-005 · Pressure Buildup"];
+      } else if (normalized.includes("similar")) {
+        content = "The local graph fixture marks EQ-001 ↔ EQ-005 and EQ-002 ↔ EQ-003 as SIMILAR_TO pairs. These are sample graph links, not similarity-model results.";
+        relatedAssets = ["EQ-001 ↔ EQ-005", "EQ-002 ↔ EQ-003"];
+      } else if (normalized.includes("pump") || normalized.includes("eq-001")) {
+        content = "Local seed data links Pump P-101 (EQ-001) to Mechanical Seal (CMP-001), Drive Shaft Bearing (CMP-002), and Impeller (CMP-003). The API and graph demo seeds use the same canonical equipment ID.";
+        relatedAssets = ["EQ-001 · Pump P-101", "CMP-001 · Mechanical Seal", "CMP-002 · Drive Shaft Bearing", "CMP-003 · Impeller"];
+      }
+
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content,
+        timestamp: "Just now",
+        relatedAssets,
+        sourceMode: "local synthetic fixture",
+        disclaimer: "Demo answer from local sample records; no API, document retrieval, or language model was called.",
+      }]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const result = await aiApi.query(q);
       setMessages((prev) => [
@@ -60,11 +95,11 @@ export default function AiQueryPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true" && <DemoDataNotice />}
+      {demoEnabled && <DemoDataNotice />}
       <PageHeader
         title="AI Query Assistant"
-        description="Natural language queries across equipment telemetry, maintenance logs, and compliance standards."
-        badge={<Badge variant="Pending" dot>AI Operations Ready</Badge>}
+        description={demoEnabled ? "Explore example answers from the local synthetic equipment and graph fixture." : "Query indexed documents and equipment risk evidence from the connected API."}
+        badge={<Badge variant={demoEnabled ? "Info" : "Pending"} dot>{demoEnabled ? "Local Fixture Demo" : "API Query"}</Badge>}
         actions={
           <Button variant="secondary" size="sm" icon={<History className="w-4 h-4" />}>
             Query History
@@ -142,7 +177,22 @@ export default function AiQueryPage() {
                     <span className="text-[10px] uppercase font-bold text-slate-400">
                       Citations & References:
                     </span>
-                    {msg.citations?.map((citation) => <a key={`${citation.document_id}-${citation.chunk_id}`} href={`/documents?document=${encodeURIComponent(citation.document_id)}`} className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 border border-slate-700 hover:border-cyan-400" title={citation.excerpt}>{citation.title}</a>)}
+                    {msg.citations?.map((citation) => {
+                      const params = new URLSearchParams({ document: citation.document_id });
+                      if (citation.page) params.set("page", citation.page);
+                      if (citation.chunk_id) params.set("chunk", citation.chunk_id);
+                      if (citation.excerpt) params.set("excerpt", citation.excerpt);
+                      return (
+                        <a
+                          key={`${citation.document_id}-${citation.chunk_id}`}
+                          href={`/documents?${params.toString()}#citation-evidence`}
+                          className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 border border-slate-700 hover:border-cyan-400"
+                          aria-label={`Open ${citation.title}${citation.page ? `, page ${citation.page}` : ""} citation`}
+                        >
+                          {citation.title}{citation.page ? ` · p. ${citation.page}` : ""}
+                        </a>
+                      );
+                    })}
                     {!msg.citations && msg.relatedAssets?.map((asset, aIdx) => <span key={aIdx} className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 border border-slate-700">{asset}</span>)}
                   </div>
                 )}
@@ -161,7 +211,7 @@ export default function AiQueryPage() {
               </div>
               <div className="p-3.5 rounded-2xl bg-[#0f182c] border border-slate-700/80 text-xs text-slate-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                Synthesizing multi-modal knowledge graph...
+                {demoEnabled ? "Looking up local fixture records…" : "Retrieving indexed evidence…"}
               </div>
             </div>
           )}

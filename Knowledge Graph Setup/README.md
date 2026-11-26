@@ -10,7 +10,7 @@ The standalone demo needs Docker and the Python dependencies in `requirements.tx
 ```
 Knowledge Graph Setup/
 ├── graph_service.py     <- Reusable CRUD service class (import this everywhere)
-├── seed.py              <- Populates Neo4j with 5 equipment + full relationships
+├── seed.py              <- Populates Neo4j with 8 equipment + full relationships
 ├── verify.py            <- Checks all nodes/relationships are correctly created
 ├── demo.py              <- Live demo of the GraphService API
 ├── docker-compose.yml   <- Starts Neo4j with one command
@@ -102,7 +102,7 @@ Seeding is safe to repeat and merges the sample records. To clear the graph firs
 
 ## Seeded Data
 
-### 5 Equipment Nodes
+### 8 Equipment Nodes
 
 | ID     | Name                   | Type           | Criticality | Status      |
 |--------|------------------------|----------------|-------------|-------------|
@@ -111,8 +111,11 @@ Seeding is safe to repeat and merges the sample records. To clear the graph firs
 | EQ-003 | Compressor C-305       | Compressor     | High        | Maintenance |
 | EQ-004 | Conveyor Belt CB-410   | Conveyor       | Low         | Operational |
 | EQ-005 | Boiler BLR-501         | Boiler         | Critical    | Operational |
+| EQ-101 | Demo Factory Centrifugal Pump P-102 | Pump | High | Operational |
+| EQ-102 | Process Mixer MX-220   | Mixer          | Medium      | Operational |
+| EQ-103 | Packaging Conveyor CV-330 | Conveyor     | High        | Maintenance |
 
-### 5 Suppliers
+### 8 Suppliers
 
 | ID     | Name              | Country | Rating          |
 |--------|-------------------|---------|-----------------|
@@ -121,8 +124,15 @@ Seeding is safe to repeat and merges the sample records. To clear the graph firs
 | SUP-003| GammaFluids Co    | India   | 4.1             |
 | SUP-004| DeltaMotors GmbH  | Germany | 4.7             |
 | SUP-005| EpsilonValves Ltd | UK      | 2.9  <<HIDDEN>> |
+| SUP-006| RotorSafe Drives | India | 3.4 |
+| SUP-007| SealWorks Midlands | UK | 4.3 |
+| SUP-008| MotionGuard Components | Germany | 3.8 |
 
-Also seeded: 12 Components, 5 Failure Modes, 3 Locations
+Also seeded: 21 Components, 9 Failure Modes, 4 Locations. `EQ-101` through
+`EQ-103` are located at `LOC-004` (Demo Factory — Building D) and have distinct
+component, supplier, and failure-mode links. Timestamped metrics and maintenance,
+failure, observation, and compliance histories are in PostgreSQL; the Neo4j seed
+contains their equipment/component/supplier/failure-risk context.
 
 ---
 
@@ -195,11 +205,11 @@ with GraphService() as svc:
 - [x] Neo4j connection configured and verified
 - [x] All 10 node label UNIQUE constraints created (IF NOT EXISTS)
 - [x] 6 additional property indexes created (IF NOT EXISTS)
-- [x] Seed script creates 5 equipment nodes with components and relationships
+- [x] Seed script creates 8 equipment nodes with components and relationships
 - [x] Suppliers, locations, and failure modes seeded
 - [x] Hidden failure pattern built in (EpsilonValves on 3 equipment)
 - [x] Reusable GraphService class with full CRUD for nodes and relationships
 - [x] Repeatable seed script merges demo records without clearing the graph by default
-- [x] verify.py checks 13 assertions and exits nonzero if any fail
+- [x] verify.py checks 15 assertions and exits nonzero if any fail
 - [x] demo.py shows live API usage
 - [x] docker-compose.yml for zero-config local setup

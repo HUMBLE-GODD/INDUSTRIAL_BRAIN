@@ -1,0 +1,35 @@
+INDUSTRIAL BRAIN — SYNTHETIC DEMO FACTORY EQUIPMENT REFERENCE
+Revision: 1.0 | Issued: 2026-01-05 | Scope: EQ-101, EQ-102, EQ-103
+
+This fictional reference is for software demonstration and search testing only.
+It is not an approved operating, maintenance, safety, or engineering procedure.
+Use the asset owner's controlled documents and qualified personnel for real work.
+
+EQ-101 — Demo Factory Centrifugal Pump P-102
+Model RDX-420, installed at Demo Factory Utilities Bay. The route card tracks
+drive-end vibration, bearing temperature, and discharge pressure. The synthetic
+baseline in this dataset is approximately 2.0–3.0 mm/s vibration and 60–65 C at
+the bearing. A higher trend should be reviewed against the relevant site route
+and maintenance history. The March 2026 history links a coupling alignment event
+to a return to baseline. An October 2026 seal leakage record links the condition
+to seal replacement and a post-repair pressure-hold check.
+
+EQ-102 — Process Mixer MX-220
+Model MX-2200, installed at Demo Factory Process Hall. The synthetic condition
+route records gearbox temperature, motor current, and vibration under a noted
+batch load. Values around 58–66 C and 11–12.5 A are representative of the
+fictional baseline. A 93 C point on 2026-04-14 is associated with the restricted
+gearbox return filter event. The April record describes filter replacement and
+oil-circuit flushing; the later September route shows a return to the sample
+baseline. A separate seal seepage event is included in the 2026 service log.
+
+EQ-103 — Packaging Conveyor CV-330
+Model FlexLine 330, installed at Demo Factory Packaging Line. The sample route
+records belt speed, motor temperature, and guard-interlock state. The safety
+interlock must never be bypassed for operation. The November 2026 sample records
+a failed functional check and a maintenance hold. The record set marks the
+machine as in maintenance pending a witnessed repair and retest; it does not
+authorize restart.
+
+Demo query cues: coupling vibration on EQ-101; mixer gearbox over-temperature
+on EQ-102; guard interlock and lockout/tagout evidence on EQ-103.

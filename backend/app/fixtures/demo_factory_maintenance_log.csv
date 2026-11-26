@@ -1,0 +1,13 @@
+record_id,equipment_id,event_date,event_type,component,summary,parts_or_action,downtime_hours,source_note
+DEMO-FAIL-101,EQ-101,2026-03-14T06:20:00Z,failure,Drive coupling,Coupling vibration above baseline,Soft-foot condition suspected,4.5,Synthetic training record
+DEMO-MAINT-102,EQ-101,2026-03-15T10:30:00Z,corrective maintenance,Drive coupling,Re-align pump and motor coupling,Flexible coupling insert,0,Synthetic training record
+DEMO-FAIL-102,EQ-101,2026-10-03T13:10:00Z,failure,Mechanical seal,Process-side seal leakage,Abrasive process carryover suspected,6.0,Synthetic training record
+DEMO-MAINT-103,EQ-101,2026-10-05T07:00:00Z,corrective maintenance,Mechanical seal,Replace seal and verify pressure hold,Seal kit RS-42,0,Synthetic training record
+DEMO-FAIL-103,EQ-102,2026-04-15T14:00:00Z,failure,Mixer gearbox,Gearbox oil temperature high,Restricted return filter suspected,7.0,Synthetic training record
+DEMO-MAINT-105,EQ-102,2026-04-16T08:30:00Z,corrective maintenance,Mixer gearbox,Flush oil circuit and replace inlet filter,Gearbox filter GF-18 and synthetic gear oil,0,Synthetic training record
+DEMO-FAIL-104,EQ-102,2026-09-10T05:45:00Z,failure,Agitator shaft seal,Process-side seal seepage,Seal elastomer hardened after hot-cleaning cycles,3.5,Synthetic training record
+DEMO-MAINT-106,EQ-102,2026-09-15T11:00:00Z,preventive maintenance,Agitator shaft seal,Inspect seal and verify mixer current,Seal inspection kit,0,Synthetic training record
+DEMO-FAIL-105,EQ-103,2026-05-21T16:25:00Z,failure,Conveyor drive motor,Motor insulation resistance low,Moisture in terminal enclosure suspected,2.0,Synthetic training record
+DEMO-MAINT-108,EQ-103,2026-05-22T09:30:00Z,corrective maintenance,Conveyor drive motor,Replace terminal lug and re-test insulation,Terminal lug kit TG-8,0,Synthetic training record
+DEMO-FAIL-106,EQ-103,2026-11-17T09:05:00Z,failure,Guard interlock switch,Guard interlock failed functional test,Actuator alignment suspected,1.5,Synthetic training record
+DEMO-MAINT-109,EQ-103,2026-11-18T08:00:00Z,corrective maintenance,Guard interlock switch,Restore interlock and complete witnessed test,Guard switch MG-12,0,Synthetic training record

@@ -21,6 +21,7 @@ from __future__ import annotations
 import io
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -206,7 +207,8 @@ class TestFixtureFiles:
         # Passage required by supervisor demo
         assert "bearing lubrication every 90 days" in content
         assert "P-101" in content
-        assert "AquaFlow" in content
+        assert "AlphaSeals Ltd" in content
+        assert "AquaFlow" not in content
         assert "SUP-001" in content
         assert "MCS-4420" in content
 
@@ -214,7 +216,7 @@ class TestFixtureFiles:
         manual = self.FIXTURE_DIR / "pump_maintenance_manual.txt"
         pages = extract_text_from_txt(manual.read_bytes())
         assert pages
-        assert any("P-101" in p["text"] for p in pages)
+        assert any("EQ-001" in p["text"] for p in pages)
 
     def test_report_extractable(self):
         report = self.FIXTURE_DIR / "maintenance_report_2024.csv"
@@ -223,7 +225,7 @@ class TestFixtureFiles:
         # Supplier/component relationship evidence
         assert any("SUP-001" in p["text"] for p in pages)
         assert any("MCS-4420" in p["text"] for p in pages)
-        assert any("P-101" in p["text"] for p in pages)
+        assert any("EQ-001" in p["text"] for p in pages)
 
     def test_full_pipeline_on_txt_fixture(self):
         manual = self.FIXTURE_DIR / "pump_maintenance_manual.txt"
@@ -341,35 +343,38 @@ def app_with_sqlite():
     # Lazy imports after env setup
     from fastapi.testclient import TestClient
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.pool import NullPool
     from sqlalchemy.orm import sessionmaker
 
     from app.db.base import Base
     from app.db.session import get_db
+    from app.api.v1.dependencies import get_current_user
     from app.main import app
 
-    test_engine = create_async_engine("sqlite+aiosqlite:///./test_docs.db", echo=False)
+    test_engine = create_async_engine(
+        "sqlite+aiosqlite:///./test_docs.db", echo=False, poolclass=NullPool
+    )
     TestingSessionLocal = sessionmaker(
         bind=test_engine, class_=AsyncSession, expire_on_commit=False
     )
 
     import asyncio
 
-    asyncio.get_event_loop().run_until_complete(
-        _create_tables(test_engine, Base)
-    )
+    asyncio.run(_create_tables(test_engine, Base))
 
     async def override_get_db():
         async with TestingSessionLocal() as session:
             yield session
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id="test-user")
 
     with TestClient(app, raise_server_exceptions=False) as client:
         yield client
 
     app.dependency_overrides.clear()
     get_settings.cache_clear()
-    asyncio.get_event_loop().run_until_complete(test_engine.dispose())
+    asyncio.run(test_engine.dispose())
     import os as _os
     _os.unlink("test_docs.db") if _os.path.exists("test_docs.db") else None
 
@@ -418,6 +423,49 @@ class TestUploadEndpoint:
                 )
         assert resp.status_code == 201, resp.text
 
+    def test_identical_upload_reuses_document_and_chunk_ids(self, app_with_sqlite):
+        index_mock = AsyncMock(return_value=["chunk-1"])
+        delete_mock = AsyncMock(return_value=None)
+        upload = {"files": {"file": ("manual.txt", b"Stable document content.", "text/plain")}}
+
+        with (
+            patch("app.api.v1.documents.index_chunks", index_mock),
+            patch("app.api.v1.documents.delete_document_vectors", delete_mock),
+        ):
+            first = app_with_sqlite.post("/api/v1/documents/upload", **upload)
+            second = app_with_sqlite.post("/api/v1/documents/upload", **upload)
+
+        assert first.status_code == second.status_code == 201
+        assert first.json()["document_id"] == second.json()["document_id"]
+        assert first.json()["status"] == second.json()["status"] == "processed"
+        index_mock.assert_awaited_once()
+        delete_mock.assert_not_awaited()
+
+    def test_failed_index_retry_reuses_document_and_clears_partial_vectors(self, app_with_sqlite):
+        index_mock = AsyncMock(side_effect=[RuntimeError("temporary indexing error"), ["chunk-1"]])
+        delete_mock = AsyncMock(return_value=None)
+        upload = {"files": {"file": ("retry.txt", b"Retryable document content.", "text/plain")}}
+
+        with (
+            patch("app.api.v1.documents.index_chunks", index_mock),
+            patch("app.api.v1.documents.delete_document_vectors", delete_mock),
+        ):
+            first = app_with_sqlite.post("/api/v1/documents/upload", **upload)
+            failed_doc = app_with_sqlite.get("/api/v1/documents").json()[0]
+            second = app_with_sqlite.post("/api/v1/documents/upload", **upload)
+
+        assert first.status_code == 500
+        error_message = first.json().get("detail") or first.json()["error"]["message"]
+        assert error_message.startswith("Document uploaded but processing failed")
+        assert second.status_code == 201
+        assert failed_doc["document_id"] == second.json()["document_id"]
+        assert second.json()["status"] == "processed"
+        assert index_mock.await_count == 2
+        first_chunk_ids = [chunk["chunk_id"] for chunk in index_mock.await_args_list[0].args[0]]
+        retry_chunk_ids = [chunk["chunk_id"] for chunk in index_mock.await_args_list[1].args[0]]
+        assert first_chunk_ids == retry_chunk_ids
+        delete_mock.assert_awaited_once()
+
     def test_unsupported_type_returns_422(self, app_with_sqlite):
         resp = app_with_sqlite.post(
             "/api/v1/documents/upload",
@@ -434,9 +482,10 @@ class TestUploadEndpoint:
         # Empty text: 500 from extraction failure — no stack trace leaked
         assert resp.status_code in (422, 500)
         body = resp.json()
-        assert "detail" in body
+        message = body.get("detail") or body.get("error", {}).get("message", "")
+        assert message
         # Must NOT contain Python traceback
-        assert "Traceback" not in body.get("detail", "")
+        assert "Traceback" not in message
 
     def test_oversized_file_returns_422(self, app_with_sqlite):
         big_data = b"X" * (MAX_FILE_SIZE_BYTES + 1)

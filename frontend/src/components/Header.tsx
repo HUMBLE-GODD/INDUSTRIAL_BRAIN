@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -19,12 +19,16 @@ import {
   ShieldCheck,
   BarChart3,
   Bell,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/utils";
 import { mockEquipmentCatalog } from "@/data/mockData";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { BrainLogo } from "./BrainLogo";
+import { authApi } from "@/lib/api/services";
+import { getAccessToken } from "@/lib/api/client";
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -46,6 +50,64 @@ export function Header({ onToggleSidebar }: HeaderProps) {
   const [isWorkOrderModalOpen, setIsWorkOrderModalOpen] = useState(false);
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [apiUserEmail, setApiUserEmail] = useState<string | null>(null);
+  const [apiConnected, setApiConnected] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const handleAuthExpired = () => {
+      setApiConnected(false);
+      setApiUserEmail(null);
+      try { window.localStorage.removeItem("industrial-brain-user-email"); } catch { /* Ignore unavailable browser storage. */ }
+    };
+    void Promise.resolve().then(() => {
+      if (!isMounted) return;
+      setApiConnected(Boolean(getAccessToken()));
+      try {
+        setApiUserEmail(window.localStorage.getItem("industrial-brain-user-email"));
+      } catch {
+        setApiUserEmail(null);
+      }
+    });
+    window.addEventListener("industrial-brain-auth-expired", handleAuthExpired);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("industrial-brain-auth-expired", handleAuthExpired);
+    };
+  }, []);
+
+  const handleAuth = async () => {
+    setAuthBusy(true);
+    setAuthError(null);
+    try {
+      const result = authMode === "register"
+        ? await authApi.register(authEmail, authPassword)
+        : await authApi.login(authEmail, authPassword);
+      setApiConnected(true);
+      setApiUserEmail(result.user.email);
+      try { window.localStorage.setItem("industrial-brain-user-email", result.user.email); } catch { /* API token persistence is handled by the API client. */ }
+      setAuthPassword("");
+      setIsAuthModalOpen(false);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Sign-in failed. Please try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogout = () => {
+    authApi.logout();
+    try { window.localStorage.removeItem("industrial-brain-user-email"); } catch { /* Ignore unavailable browser storage. */ }
+    setApiUserEmail(null);
+    setApiConnected(false);
+    setIsAuthModalOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-30 w-full bg-[#080d1a]/95 backdrop-blur-md border-b border-slate-800/80">
@@ -96,16 +158,13 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
         {/* Right: Actions, Alerts, Theme, User */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Alerts Pill with Badge */}
+          {/* Alerts link. The API has no alert-count contract yet. */}
           <Link
             href="/dashboard"
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white rounded-lg hover:bg-slate-800/60 transition-colors"
           >
             <Bell className="w-4 h-4 text-slate-400" />
             <span className="hidden sm:inline font-medium">Alerts</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500 text-white leading-tight shadow-[0_0_8px_rgba(244,63,94,0.5)]">
-              12
-            </span>
           </Link>
 
           {/* Help Button */}
@@ -142,16 +201,28 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
           <div className="h-5 w-px bg-slate-800 hidden sm:block" />
 
+          <Button
+            variant={apiConnected ? "outline" : "secondary"}
+            size="sm"
+            icon={<LogIn className="w-3.5 h-3.5" />}
+            onClick={() => { setAuthError(null); setIsAuthModalOpen(true); }}
+            className="px-2 sm:px-2.5"
+            aria-label={apiConnected ? "API connected" : "Sign in"}
+          >
+            <span className="hidden md:inline">{apiConnected ? "API connected" : "Sign in"}</span>
+            <span className="md:hidden">{apiConnected ? "API" : "Sign in"}</span>
+          </Button>
+
           {/* User Profile */}
           <div className="flex items-center gap-2.5 pl-1">
             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 p-[1.5px] shrink-0 shadow-md">
               <div className="w-full h-full rounded-full bg-[#0f172a] flex items-center justify-center text-xs font-bold text-cyan-300">
-                AU
+                {(apiUserEmail?.slice(0, 2).toUpperCase()) || "DU"}
               </div>
             </div>
             <div className="hidden xl:block text-left leading-tight">
-              <div className="text-xs font-semibold text-slate-200">Admin User</div>
-              <div className="text-[10px] text-slate-400">Operations Team</div>
+              <div className="text-xs font-semibold text-slate-200">{apiUserEmail || "Demo User"}</div>
+              <div className="text-[10px] text-slate-400">{apiConnected ? "Authenticated API session" : "Local demo session"}</div>
             </div>
           </div>
         </div>
@@ -287,6 +358,49 @@ export function Header({ onToggleSidebar }: HeaderProps) {
             </div>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        title={apiConnected ? "API session" : authMode === "register" ? "Create demo account" : "Sign in to the API"}
+        description={apiConnected ? "The bearer token is stored in this browser for API requests." : "Use a local demo account to call the authenticated backend endpoints."}
+        footer={apiConnected ? (
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setIsAuthModalOpen(false)}>Close</Button>
+            <Button variant="danger" size="sm" icon={<LogOut className="w-3.5 h-3.5" />} onClick={handleLogout}>Sign out</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setIsAuthModalOpen(false)}>Cancel</Button>
+            <Button variant="primary" size="sm" isLoading={authBusy} onClick={() => void handleAuth()}>
+              {authMode === "register" ? "Create account" : "Sign in"}
+            </Button>
+          </>
+        )}
+      >
+        {apiConnected ? (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-xs text-emerald-200">
+            Signed in as <span className="font-semibold">{apiUserEmail || "demo user"}</span>.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 rounded-lg bg-[#080d1a] p-1 text-xs">
+              <button type="button" onClick={() => { setAuthMode("login"); setAuthError(null); }} className={`rounded-md px-3 py-2 ${authMode === "login" ? "bg-[#1c2a4f] text-cyan-300" : "text-slate-400"}`}>Sign in</button>
+              <button type="button" onClick={() => { setAuthMode("register"); setAuthError(null); }} className={`rounded-md px-3 py-2 ${authMode === "register" ? "bg-[#1c2a4f] text-cyan-300" : "text-slate-400"}`}>Create account</button>
+            </div>
+            <label className="block text-xs text-slate-300">
+              Email
+              <input type="email" autoComplete="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-700 bg-[#080d1a] px-3 py-2 text-sm text-white outline-none focus:border-cyan-500" placeholder="demo@example.com" />
+            </label>
+            <label className="block text-xs text-slate-300">
+              Password
+              <input type="password" autoComplete={authMode === "register" ? "new-password" : "current-password"} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void handleAuth(); }} className="mt-1 w-full rounded-lg border border-slate-700 bg-[#080d1a] px-3 py-2 text-sm text-white outline-none focus:border-cyan-500" placeholder={authMode === "register" ? "At least 8 characters" : "Your password"} />
+            </label>
+            {authMode === "register" && <p className="text-[11px] text-slate-500">New accounts start with the viewer role.</p>}
+            {authError && <p role="alert" className="rounded-lg border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-200">{authError}</p>}
+          </div>
+        )}
       </Modal>
     </header>
   );

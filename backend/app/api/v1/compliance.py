@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.dependencies import get_current_user
 from app.db.session import get_db
 from app.schemas.compliance import ComplianceGapResponse
 from app.services.compliance_service import ComplianceService
@@ -28,11 +29,12 @@ def get_compliance_service() -> ComplianceService:
     description=(
         "Returns explainable compliance assessments and pending audits across equipment checklists. "
         "Applies transparent regulatory rules and distinguishes overdue, non-compliant, and pending statuses. "
-        "Note: Implemented without auth dependency for this independent PR pending Tatvik's platform auth merge."
+        "Requires a valid bearer token and evaluates the stored checklist records using explicit rules."
     ),
 )
 async def get_compliance_gaps(
     equipment_id: Optional[str] = Query(default=None, description="Optional equipment identifier filter (e.g. EQ-001)"),
+    _current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: ComplianceService = Depends(get_compliance_service),
 ) -> ComplianceGapResponse:

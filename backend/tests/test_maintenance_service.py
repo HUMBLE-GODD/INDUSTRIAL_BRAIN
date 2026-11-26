@@ -6,10 +6,19 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from app.api.v1.dependencies import get_current_user
 from app.api.v1.maintenance import get_maintenance_service
 from app.db.session import get_db
 from app.models.database import Equipment, Failure, MaintenanceRecord
 from app.services.maintenance_service import EquipmentNotFoundError, MaintenanceService
+
+
+@pytest.fixture(autouse=True)
+def authenticated_api_requests():
+    """Exercise maintenance behavior behind the API's required auth dependency."""
+    app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def _create_mock_equipment_dataset():
@@ -150,7 +159,7 @@ async def test_maintenance_unknown_equipment_returns_404():
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.get("/api/v1/maintenance/predictions?equipment_id=EQ-999")
             assert resp.status_code == 404
-            assert "EQ-999" in resp.json()["detail"]
+            assert "EQ-999" in resp.json()["error"]["message"]
     finally:
         app.dependency_overrides.pop(get_db, None)
 
@@ -189,6 +198,6 @@ async def test_maintenance_db_error_returns_503():
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.get("/api/v1/maintenance/predictions")
             assert resp.status_code == 503
-            assert "could not access the database" in resp.json()["detail"]
+            assert "could not access the database" in resp.json()["error"]["message"]
     finally:
         app.dependency_overrides.pop(get_db, None)

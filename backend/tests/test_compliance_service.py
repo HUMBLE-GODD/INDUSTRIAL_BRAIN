@@ -6,10 +6,19 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
+from app.api.v1.dependencies import get_current_user
 from app.api.v1.compliance import get_compliance_service
 from app.db.session import get_db
 from app.models.database import ComplianceChecklist, ComplianceStatus, Equipment
 from app.services.compliance_service import ComplianceService
+
+
+@pytest.fixture(autouse=True)
+def authenticated_api_requests():
+    """Exercise compliance behavior behind the API's required auth dependency."""
+    app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def _create_mock_compliance_dataset():
@@ -131,7 +140,7 @@ async def test_compliance_unknown_equipment_returns_404():
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.get("/api/v1/compliance/gaps?equipment_id=UNKNOWN-999")
             assert resp.status_code == 404
-            assert "UNKNOWN-999" in resp.json()["detail"]
+            assert "UNKNOWN-999" in resp.json()["error"]["message"]
     finally:
         app.dependency_overrides.pop(get_db, None)
 
@@ -169,6 +178,6 @@ async def test_compliance_db_error_returns_503():
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.get("/api/v1/compliance/gaps")
             assert resp.status_code == 503
-            assert "could not access the database" in resp.json()["detail"]
+            assert "could not access the database" in resp.json()["error"]["message"]
     finally:
         app.dependency_overrides.pop(get_db, None)

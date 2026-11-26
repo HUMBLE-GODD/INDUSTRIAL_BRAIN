@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { Card } from '../../components/ui/Card';
+import { DataModeNotice } from '../../components/ui/DataModeNotice';
+import { API_IS_CONFIGURED } from '../../lib/api/client';
+import { useSession } from '../../auth/SessionContext';
 
 type MenuItem = {
   icon: string;
   label: string;
   detail?: string;
-  onPress?: () => void;
 };
 
 type MenuSection = {
@@ -17,40 +19,38 @@ type MenuSection = {
 };
 
 export default function SettingsScreen() {
-  const showUnavailable = (feature: string) => {
-    Alert.alert(feature, `${feature} is not available yet.`);
-  };
-
+  const { user, token, signOut } = useSession();
   const menuSections: MenuSection[] = [
     {
       title: 'Account',
       items: [
-        { icon: '👤', label: 'Profile', detail: 'amit@industrialbrain.io' },
-        { icon: '🔑', label: 'Change Password', detail: 'Unavailable', onPress: () => showUnavailable('Password management') },
-        { icon: '🏭', label: 'Organization', detail: 'EPIC Industries' },
+        { icon: '👤', label: 'Profile', detail: user?.email ?? (token ? 'Signed in' : 'No API session') },
+        { icon: '🪪', label: 'Role', detail: user?.role ?? (token ? 'Authenticated' : 'Fixture mode') },
+        { icon: '🔑', label: 'Change Password', detail: 'Unavailable' },
+        { icon: '🏭', label: 'Organization', detail: 'API account' },
       ],
     },
     {
       title: 'Preferences',
       items: [
-        { icon: '🔔', label: 'Push Notifications', detail: 'Unavailable', onPress: () => showUnavailable('Push notifications') },
+        { icon: '🔔', label: 'Push Notifications', detail: 'Unavailable' },
         { icon: '🌙', label: 'Dark Mode', detail: 'Always on' },
       ],
     },
     {
       title: 'Data',
       items: [
-        { icon: '📥', label: 'Offline Data', detail: 'Not available' },
-        { icon: '🔄', label: 'Force Sync', detail: 'Unavailable', onPress: () => showUnavailable('Sync') },
-        { icon: '🗑️', label: 'Clear Cache', detail: 'Unavailable', onPress: () => showUnavailable('Cache management') },
+        { icon: '📥', label: 'Data source', detail: API_IS_CONFIGURED ? 'Live API' : 'Local fixtures' },
+        { icon: '🔄', label: 'Sync equipment', detail: API_IS_CONFIGURED ? 'Pull down on Equipment or Home' : 'Configure API URL' },
+        { icon: '🗑️', label: 'Clear Cache', detail: 'Unavailable' },
       ],
     },
     {
       title: 'About',
       items: [
         { icon: 'ℹ️', label: 'Version', detail: '1.0.0' },
-        { icon: '📄', label: 'Terms of Service', detail: 'Unavailable', onPress: () => showUnavailable('Terms of Service') },
-        { icon: '🛡️', label: 'Privacy Policy', detail: 'Unavailable', onPress: () => showUnavailable('Privacy Policy') },
+        { icon: '📄', label: 'Terms of Service', detail: 'Unavailable' },
+        { icon: '🛡️', label: 'Privacy Policy', detail: 'Unavailable' },
       ],
     },
   ];
@@ -66,13 +66,14 @@ export default function SettingsScreen() {
         {/* User Info Card */}
         <Card style={styles.userCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>AB</Text>
+            <Text style={styles.avatarText}>{user?.email ? user.email.slice(0, 2).toUpperCase() : 'IB'}</Text>
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>Amit Bhatt</Text>
-            <Text style={styles.userRole}>Plant Engineer</Text>
+            <Text style={styles.userName}>{user?.email ?? (token ? 'Signed in' : 'Local demo')}</Text>
+            <Text style={styles.userRole}>{user?.role ? `${user.role} · API session` : API_IS_CONFIGURED ? 'Sign in to sync data' : 'Fixture mode'}</Text>
           </View>
         </Card>
+        <DataModeNotice />
 
         {/* Menu Sections */}
         {menuSections.map((section, si) => (
@@ -89,18 +90,7 @@ export default function SettingsScreen() {
                   </>
                 );
 
-                return item.onPress ? (
-                  <TouchableOpacity
-                    key={ii}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${item.label}, ${item.detail}`}
-                    activeOpacity={0.75}
-                    onPress={item.onPress}
-                    style={rowStyle}
-                  >
-                    {content}
-                  </TouchableOpacity>
-                ) : (
+                return (
                   <View key={ii} style={rowStyle}>
                     {content}
                   </View>
@@ -111,13 +101,15 @@ export default function SettingsScreen() {
         ))}
 
         {/* Logout */}
-        <TouchableOpacity
-          accessibilityRole="button"
-          onPress={() => Alert.alert('Log Out', 'Sign-in is not enabled in this app yet.')}
-          style={styles.logoutButton}
-        >
-          <Text style={styles.logoutText}>🚪  Log Out</Text>
-        </TouchableOpacity>
+        {token ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => void signOut()}
+            style={styles.logoutButton}
+          >
+            <Text style={styles.logoutText}>🚪  Sign out</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

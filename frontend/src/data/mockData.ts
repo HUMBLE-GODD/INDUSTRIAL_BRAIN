@@ -234,7 +234,7 @@ export const mockAiQueryData = {
     {
       role: "assistant",
       content:
-        "Local seed data links **Pump P-101 (EQ-001)** to three components:\n- Mechanical Seal (CMP-001), supplied by AlphaSeals Ltd\n- Drive Shaft Bearing (CMP-002), supplied by BetaBearings Inc\n- Impeller (CMP-003), supplied by GammaFluids Co\n\nThe seed data includes these equipment and component relationships, but no maintenance history.",
+        "Local seed data links **Pump P-101 (EQ-001)** to three components:\n- Mechanical Seal (CMP-001), supplied by AlphaSeals Ltd\n- Drive Shaft Bearing (CMP-002), supplied by BetaBearings Inc\n- Impeller (CMP-003), supplied by GammaFluids Co\n\nThis sample answer uses graph-fixture relationships only; it does not query live maintenance records or documents.",
       timestamp: "10:14 AM",
       relatedAssets: ["EQ-001 · Pump P-101", "CMP-001 · Mechanical Seal", "CMP-002 · Drive Shaft Bearing", "CMP-003 · Impeller"],
     },

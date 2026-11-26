@@ -32,7 +32,7 @@ class Neo4jGraphEvidenceAdapter:
              collect(DISTINCT {
                  name: fm.name,
                  severity: fm.severity,
-                 description: coalesce(fm.typical_cause, '')
+                 description: coalesce(fm.typical_cause, fm.description, '')
              }) AS failure_modes_data
         RETURN s.name AS supplier,
                s.rating AS rating,

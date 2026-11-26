@@ -8,6 +8,9 @@ Endpoints
 GET /api/v1/graph/summary
     Overall node/relationship counts for the graph.
 
+GET /api/v1/graph/visualization
+    Full normalized node and edge data for the graph.
+
 GET /api/v1/graph/supplier-risks
     Suppliers with components prone to failure modes, with affected equipment,
     severity breakdown, and rating.
@@ -25,10 +28,11 @@ from __future__ import annotations
 import logging
 import re
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from fastapi.responses import JSONResponse
 from neo4j.exceptions import AuthError, ServiceUnavailable
 
+from app.api.v1.dependencies import get_current_user
 from app.graph.service import GraphQueryService
 
 logger = logging.getLogger(__name__)
@@ -72,7 +76,7 @@ def _neo4j_degraded(detail: str = "Graph database is currently unavailable.") ->
     tags=["Knowledge Graph"],
     responses={503: {"description": "Neo4j unavailable"}},
 )
-async def get_graph_summary():
+async def get_graph_summary(_current_user=Depends(get_current_user)):
     """Return total node/relationship counts, broken down by label."""
     try:
         summary = await _service.get_graph_summary()
@@ -86,12 +90,28 @@ async def get_graph_summary():
 
 
 @router.get(
+    "/graph/visualization",
+    summary="Graph visualization data",
+    tags=["Knowledge Graph"],
+    responses={503: {"description": "Neo4j unavailable"}},
+)
+async def get_graph_visualization(_current_user=Depends(get_current_user)):
+    """Return all labeled nodes and typed relationships in the graph."""
+    try:
+        visualization = await _service.get_graph_visualization()
+    except (ServiceUnavailable, AuthError):
+        return _neo4j_degraded()
+
+    return visualization
+
+
+@router.get(
     "/graph/supplier-risks",
     summary="Supplier risk findings",
     tags=["Knowledge Graph"],
     responses={503: {"description": "Neo4j unavailable"}},
 )
-async def get_supplier_risks():
+async def get_supplier_risks(_current_user=Depends(get_current_user)):
     """
     Return every supplier whose components are linked to at least one failure
     mode, together with:
@@ -113,9 +133,11 @@ async def get_supplier_risks():
     enriched = []
     for row in risks:
         severity_counts: dict[str, int] = {}
-        for sev in row.get("severities", []):
-            if sev:
-                severity_counts[sev] = severity_counts.get(sev, 0) + 1
+        risk_links = row.get("risk_links", [])
+        for link in risk_links:
+            severity = link.get("severity") if isinstance(link, dict) else None
+            if severity:
+                severity_counts[severity] = severity_counts.get(severity, 0) + 1
 
         enriched.append(
             {
@@ -131,7 +153,7 @@ async def get_supplier_risks():
                 "failure_mode_ids": row.get("failure_mode_ids", []),
                 "failure_mode_names": row.get("failure_mode_names", []),
                 "severity_breakdown": severity_counts,
-                "failure_link_count": row["failure_link_count"],
+                "failure_link_count": len(risk_links),
             }
         )
 
@@ -149,6 +171,7 @@ async def get_supplier_risks():
 )
 async def get_equipment_context(
     equipment_id: str = Path(..., description="Canonical equipment ID, e.g. EQ-001"),
+    _current_user=Depends(get_current_user),
 ):
     """
     Lightweight equipment context bundle for Prathmesh's answer-generation
@@ -190,6 +213,7 @@ rca_router = APIRouter()
 )
 async def get_rca(
     equipment_id: str = Path(..., description="Canonical equipment ID, e.g. EQ-001"),
+    _current_user=Depends(get_current_user),
 ):
     """
     Return an explainable risk path for *equipment_id*.
@@ -220,7 +244,7 @@ async def get_rca(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
                 f"Equipment '{equipment_id}' not found in the knowledge graph. "
-                "Seeded IDs are EQ-001 through EQ-005."
+                "Seeded IDs include EQ-001 through EQ-005 and Demo Factory assets EQ-101 through EQ-103."
             ),
         )
 

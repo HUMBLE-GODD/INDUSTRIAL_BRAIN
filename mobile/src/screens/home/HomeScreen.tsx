@@ -1,18 +1,76 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, spacing, typography } from '../../theme';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
+import { DataModeNotice } from '../../components/ui/DataModeNotice';
+import { RetryState } from '../../components/ui/RetryState';
+import { API_IS_CONFIGURED, ApiError, equipmentApi } from '../../lib/api/client';
+import { DEMO_EQUIPMENT } from '../../data/equipment';
+
+type InventoryCounts = { total: number | null; operational: number | null; maintenance: number | null };
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
+  const [counts, setCounts] = useState<InventoryCounts>(API_IS_CONFIGURED
+    ? { total: null, operational: null, maintenance: null }
+    : {
+      total: DEMO_EQUIPMENT.length,
+      operational: DEMO_EQUIPMENT.filter((item) => item.status === 'operational').length,
+      maintenance: DEMO_EQUIPMENT.filter((item) => item.status === 'maintenance').length,
+    });
+  const [loading, setLoading] = useState(API_IS_CONFIGURED);
+  const [refreshing, setRefreshing] = useState(false);
+  const [inventoryError, setInventoryError] = useState('');
+  const requestActive = useRef(false);
+
+  const refreshInventory = useCallback(async (pullToRefresh = false) => {
+    if (requestActive.current) return;
+    if (!API_IS_CONFIGURED) {
+      setCounts({
+        total: DEMO_EQUIPMENT.length,
+        operational: DEMO_EQUIPMENT.filter((item) => item.status === 'operational').length,
+        maintenance: DEMO_EQUIPMENT.filter((item) => item.status === 'maintenance').length,
+      });
+      setInventoryError('');
+      return;
+    }
+    requestActive.current = true;
+    if (pullToRefresh) setRefreshing(true);
+    else setLoading(true);
+    setInventoryError('');
+    try {
+      const firstPage = await equipmentApi.list({ page: 1, page_size: 100 });
+      const allItems = [...firstPage.items];
+      for (let page = 2; page <= firstPage.pages; page += 1) {
+        const nextPage = await equipmentApi.list({ page, page_size: 100 });
+        allItems.push(...nextPage.items);
+      }
+      setCounts({
+        total: firstPage.total,
+        operational: allItems.filter((item) => item.status.toLowerCase() === 'operational').length,
+        maintenance: allItems.filter((item) => item.status.toLowerCase().includes('maintenance')).length,
+      });
+    } catch (cause) {
+      setInventoryError(cause instanceof ApiError ? cause.message : 'The equipment summary could not be refreshed.');
+    } finally {
+      requestActive.current = false;
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    void refreshInventory();
+  }, [refreshInventory]));
+
   const stats = [
-    { label: 'Demo Equipment', value: '5', color: colors.primary },
+    { label: API_IS_CONFIGURED ? 'Shared Equipment' : 'Fixture Equipment', value: counts.total?.toString() ?? '—', color: colors.primary },
+    { label: 'Operational', value: counts.operational?.toString() ?? '—', color: colors.success },
+    { label: 'In Maintenance', value: counts.maintenance?.toString() ?? '—', color: colors.warning },
     { label: 'Demo Alerts', value: '5', color: colors.danger },
-    { label: 'Demo Health', value: '75%', color: colors.success },
-    { label: 'In Maintenance', value: '1', color: colors.warning },
   ];
 
   const recentAlerts = [
@@ -25,12 +83,17 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refreshInventory(true)} tintColor={colors.primary} />}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.greeting}>Good Evening 👋</Text>
           <Text style={styles.title}>Industrial Brain</Text>
-          <Text style={styles.demoNote}>Local demo data · equipment identities mirror the graph seed</Text>
+          <Text style={styles.demoNote}>{API_IS_CONFIGURED ? 'Equipment counts use the shared API inventory' : 'Equipment identities mirror the local graph seed'}</Text>
+          <DataModeNotice />
         </View>
 
         {/* KPI Cards */}
@@ -42,6 +105,8 @@ export default function HomeScreen() {
             </Card>
           ))}
         </View>
+        {loading ? <ActivityIndicator color={colors.primary} style={styles.inventoryLoading} /> : null}
+        {inventoryError ? <RetryState compact title="Inventory summary unavailable" message={inventoryError} onRetry={() => void refreshInventory(true)} /> : null}
 
         {/* Recent Alerts */}
         <Text style={styles.sectionTitle}>Demo Alerts</Text>
@@ -84,18 +149,6 @@ export default function HomeScreen() {
               <Text style={styles.actionLabel}>Ask AI</Text>
             </Card>
           </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Work orders are not available yet"
-            activeOpacity={0.75}
-            onPress={() => Alert.alert('Work Orders', 'Work orders are not available yet.')}
-            style={styles.actionTouchTarget}
-          >
-            <Card style={styles.actionCard}>
-              <Text style={styles.actionEmoji}>📋</Text>
-              <Text style={styles.actionLabel}>Work Orders</Text>
-            </Card>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -133,6 +186,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
     marginBottom: spacing.xxl,
+  },
+  inventoryLoading: {
+    marginTop: -spacing.lg,
+    marginBottom: spacing.lg,
   },
   statCard: {
     width: '47%',

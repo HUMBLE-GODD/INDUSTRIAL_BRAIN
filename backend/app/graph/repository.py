@@ -24,6 +24,71 @@ from neo4j.exceptions import ServiceUnavailable
 
 logger = logging.getLogger(__name__)
 
+_GRAPH_LABEL_PRIORITY = (
+    "Equipment",
+    "Component",
+    "Supplier",
+    "Location",
+    "FailureMode",
+    "Technician",
+    "MaintenanceRecord",
+    "Inspection",
+    "Document",
+    "Regulation",
+)
+_GRAPH_DOMAIN_ID_FIELDS = {
+    "Equipment": ("equipment_id",),
+    "Component": ("component_id",),
+    "Supplier": ("supplier_id",),
+    "Location": ("location_id",),
+    "FailureMode": ("failure_mode_id",),
+    "Technician": ("technician_id",),
+    "MaintenanceRecord": ("record_id", "maintenance_record_id"),
+    "Inspection": ("inspection_id",),
+    "Document": ("document_id",),
+    "Regulation": ("regulation_id",),
+}
+
+
+def _graph_node_domain_id(labels: list[str], properties: dict[str, Any]) -> str | None:
+    """Return the label-specific domain key, avoiding foreign-key confusion."""
+    for label in _GRAPH_LABEL_PRIORITY:
+        if label not in labels:
+            continue
+        for field in _GRAPH_DOMAIN_ID_FIELDS.get(label, ()):
+            value = properties.get(field)
+            if value is not None:
+                return str(value)
+
+    for field in ("id", "key", "code", "tag", "identifier"):
+        value = properties.get(field)
+        if value is not None:
+            return str(value)
+    return None
+
+
+def _normalize_graph_value(value: Any) -> Any:
+    """Convert Neo4j property values to JSON-safe Python values."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _normalize_graph_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_normalize_graph_value(item) for item in value]
+
+    # Neo4j temporal and spatial values expose these methods. Preserve their
+    # complete value in a portable representation for API clients.
+    iso_format = getattr(value, "iso_format", None)
+    if callable(iso_format):
+        return iso_format()
+    isoformat = getattr(value, "isoformat", None)
+    if callable(isoformat):
+        return isoformat()
+    wkt = getattr(value, "wkt", None)
+    if wkt is not None:
+        return str(wkt)
+    return str(value)
+
 
 # ---------------------------------------------------------------------------
 # Permitted node labels – used to guard label interpolation
@@ -74,6 +139,72 @@ async def fetch_graph_summary(session: AsyncSession) -> dict[str, Any]:
     }
 
 
+async def fetch_graph_visualization(session: AsyncSession) -> dict[str, Any]:
+    """Return every graph node and relationship in a normalized shape.
+
+    Neo4j ``elementId`` values provide collision-free keys for nodes and edge
+    endpoints. The domain ID is returned separately for display. Properties
+    are retained in full and normalized for JSON serialization.
+    """
+    node_result = await session.run(
+        """
+        MATCH (n)
+        RETURN elementId(n) AS id,
+               labels(n) AS labels,
+               properties(n) AS properties
+        ORDER BY id
+        """
+    )
+    node_records = await node_result.data()
+    nodes = []
+    for record in node_records:
+        node_id = str(record["id"])
+        labels = sorted(record.get("labels") or [])
+        properties = _normalize_graph_value(record.get("properties") or {})
+        domain_id = _graph_node_domain_id(labels, properties)
+        node_type = next(
+            (label for label in _GRAPH_LABEL_PRIORITY if label in labels),
+            labels[0] if labels else "Node",
+        )
+        display_name = properties.get("name")
+        nodes.append(
+            {
+                "id": node_id,
+                "domain_id": domain_id,
+                "type": node_type,
+                "label": str(display_name) if display_name is not None else (domain_id or node_id),
+                "labels": labels,
+                "properties": properties,
+            }
+        )
+
+    edge_result = await session.run(
+        """
+        MATCH (source)-[relationship]->(target)
+        RETURN
+            elementId(relationship) AS id,
+            elementId(source) AS source,
+            elementId(target) AS target,
+            type(relationship) AS type,
+            properties(relationship) AS properties
+        ORDER BY id
+        """
+    )
+    edge_records = await edge_result.data()
+    edges = [
+        {
+            "id": str(record["id"]),
+            "source": str(record["source"]),
+            "target": str(record["target"]),
+            "type": record["type"],
+            "properties": _normalize_graph_value(record.get("properties") or {}),
+        }
+        for record in edge_records
+    ]
+
+    return {"nodes": nodes, "edges": edges}
+
+
 # ---------------------------------------------------------------------------
 # Supplier risks
 # ---------------------------------------------------------------------------
@@ -102,9 +233,12 @@ async def fetch_supplier_risks(session: AsyncSession) -> list[dict[str, Any]]:
         collect(DISTINCT c.name)          AS affected_component_names,
         collect(DISTINCT fm.failure_mode_id) AS failure_mode_ids,
         collect(DISTINCT fm.name)            AS failure_mode_names,
-        collect(DISTINCT fm.severity)        AS severities,
-        count(fm)                            AS failure_link_count
-    ORDER BY failure_link_count DESC
+        collect(DISTINCT {
+            component_id: c.component_id,
+            failure_mode_id: fm.failure_mode_id,
+            severity: fm.severity
+        }) AS risk_links
+    ORDER BY size(risk_links) DESC
     """
     result = await session.run(cypher)
     records = await result.data()
@@ -157,7 +291,7 @@ async def fetch_rca_for_equipment(
             failure_mode_id: fm.failure_mode_id,
             name:            fm.name,
             severity:        fm.severity,
-            description:     fm.description
+            description:     coalesce(fm.description, fm.typical_cause)
         }) AS failure_modes
     ORDER BY c.component_id
     """

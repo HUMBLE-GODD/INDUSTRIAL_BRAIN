@@ -1,154 +1,92 @@
-# 🧠 Industrial Brain — AI Decision Support Platform
+# Industrial Brain
 
-Industrial Brain is a prototype decision-support platform for plant operations. Its planned workflows combine equipment and maintenance records with manuals, reports, and supplier/failure relationships so engineers can investigate issues and make maintenance decisions.
+Industrial Brain is a prototype operations platform for equipment records, field observations, maintenance history, document retrieval, and supplier-risk investigations. All included equipment, maintenance, compliance, graph, and document records are synthetic demo data.
 
-## 🏗 Target Architecture
+## Run the demo
+
+Requirements: Docker Desktop with Compose, Node.js/npm, and an internet connection the first time the document embedding model is needed.
+
+From the repository root:
+
+```bash
+cp .env.example .env
+make demo
+```
+
+`make demo` starts PostgreSQL, Neo4j, Qdrant, and the FastAPI service, then seeds the SQL records, Neo4j graph, and searchable document fixtures. The seed commands are repeatable. They do not run automatically during application startup. The first document indexing run downloads the embedding model and can take several minutes on CPU.
+
+In a second terminal, start the web app:
+
+```bash
+cp frontend/.env.local.example frontend/.env.local
+cd frontend
+npm ci
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). The example frontend settings use **live API mode**. The included records are synthetic demo data stored in the shared local backend.
+
+### Live API walkthrough
+
+Sign in from the web header with the demo account (`demo@industrialbrain.local` / `industrialbrain-demo`) or create another local account. Then:
+
+1. Open **Equipment**, select `EQ-101` (Demo Factory pump P-102), and inspect the seeded maintenance, failure, metric, and field-observation history. The records are synthetic and stored in PostgreSQL.
+2. Open **Knowledge Graph** and **RCA** to inspect the seeded supplier-risk data for the original five assets and Demo Factory assets `EQ-101` through `EQ-103`. The live graph API provides the canvas topology, summaries, supplier risks, and explainable equipment-to-component paths. Select or tap a graph node to inspect its details and connected entities.
+3. Open **Maintenance** and **Compliance** to see transparent rule-based results from the seeded SQL records. Maintenance results are heuristics, not machine-learning predictions.
+4. For document search and cited answers, ask about the pump manual, annual maintenance report, Demo Factory manual, maintenance log, or compliance register in **AI Query**. `make demo` already runs `make seed-docs`; that target can also be rerun independently. Without a configured Gemini or Groq key, the answer uses the labeled deterministic evidence-summary fallback.
+5. Open the printable [Demo Factory QR labels](http://localhost:3000/demo-factory-qr-labels.html) and scan one in the mobile app. The scanner resolves the canonical ID through the same API.
+
+The document fixture loader creates a local account if needed. Its defaults are `demo@industrialbrain.local` / `industrialbrain-demo`; override them with `DEMO_EMAIL` and `DEMO_PASSWORD` if you already registered a different local account.
+
+## API and service URLs
+
+- FastAPI docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Health: [http://localhost:8000/health](http://localhost:8000/health)
+- Neo4j Browser: [http://localhost:7474](http://localhost:7474)
+- Qdrant dashboard: [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
+
+The platform API includes registration/login, authenticated equipment list/detail/history, field observations, graph summary/supplier-risk/RCA queries, document upload/search, maintenance heuristics, compliance rules, and evidence-grounded query responses. See [backend/README.md](backend/README.md) for request and response examples.
+
+## Demo data and reset commands
+
+`make seed-db` upserts eight canonical equipment records, thirteen maintenance records, eight synthetic failures, nine compliance checks, ninety daily telemetry snapshots (thirty per factory asset), six field observations, and the factory suppliers/technicians in PostgreSQL. It leaves the original five equipment IDs and records intact and adds `EQ-101` (pump P-102), `EQ-102` (mixer MX-220), and `EQ-103` (conveyor CV-330). `make seed` adds the matching eight-equipment Neo4j graph, with twenty-one components, eight suppliers, nine failure modes, and four locations. `make seed-docs` uploads the pump manual/report plus the Demo Factory manual, maintenance log, and compliance register. `make demo` runs all three seed targets after setup.
+
+`make seed-reset` deletes all Neo4j nodes and relationships before reseeding. Use it only with a dedicated demo database. `make clean` deletes every Compose volume, including PostgreSQL, Neo4j, Qdrant, and uploaded files.
+
+To switch the website back to its explicitly labeled local UI fixture walkthrough, set `NEXT_PUBLIC_ENABLE_DEMO_DATA=true` and restart the web server.
+
+## Mobile app
+
+The Expo app shares equipment, history, observations, and Ask AI with the website. In another terminal:
+
+```bash
+cd mobile
+npm ci
+cp .env.example .env
+npx expo start
+```
+
+The example URL works on iOS Simulator. For an Android emulator, use `EXPO_PUBLIC_API_URL=http://10.0.2.2:8000/api/v1`. For a physical phone on the same network as this computer, replace `localhost` with this computer's LAN IP (on macOS, `ipconfig getifaddr en0` usually shows it). Sign in with the same demo account in both clients; pull down on Home or Equipment in the app, or use Refresh on the website, to see changes saved by the other client. Camera QR scanning requires the iOS or Android app; the QR screen also supports manual ID lookup.
+
+## Project structure
 
 ```text
-User 
- ├── Web App (Next.js)
- └── Mobile App (Expo React Native)
-       ↓ (REST + WebSocket)
- FastAPI Backend (Python)
-       ├── Relational Data   → PostgreSQL
-       ├── Graph Data        → Neo4j
-       ├── Vector Search     → Qdrant
-       └── AI/ML Processing  → Gemini / local models (planned)
+backend/                 FastAPI, API schemas, migrations, and demo fixtures
+Knowledge Graph Setup/   Neo4j seed, verification, and demo tools
+frontend/                Next.js dashboard
+mobile/                  Expo React Native app
+team_assignments/        Six scoped team work packages
 ```
 
-This is the planned end-state architecture. In the current prototype, the web and mobile clients still use local demo data, and the full REST, WebSocket, and Gemini workflows are not yet connected end to end.
+## Team work packages
 
-## 🛠 Tech Stack
+- [Tatvik — platform and core API](team_assignments/tatvik_platform_data_api.md)
+- [Kavyansh — document ingestion](team_assignments/kavyansh_documents_ingestion.md)
+- [Hardik — knowledge graph](team_assignments/hardik_knowledge_graph.md)
+- [Prathmesh — decision services](team_assignments/prathmesh_decision_services.md)
+- [Anchal — web dashboard](team_assignments/anchal_web_dashboard.md)
+- [Surbhi — mobile field app](team_assignments/surbhi_mobile_field_app.md)
 
-This table lists the selected target technologies; some integrations remain planned work.
+## Safety and project status
 
-| Component | Technology |
-|---|---|
-| Backend | FastAPI (Python) |
-| Web Frontend | Next.js (React) |
-| Mobile App | Expo (React Native) |
-| Graph Database | Neo4j |
-| Vector Database | Qdrant |
-| Relational DB | PostgreSQL |
-| LLM Integration | Gemini (planned; not wired into the current prototype) |
-
-## Project Overview and 100% Completion Goal
-
-Industrial Brain is being built to help people who operate and maintain factories find useful information across scattered equipment records, manuals, inspection reports, and maintenance history. In plain terms, it aims to connect an asset, its parts, the documents about it, and the problems it has had so a technician or supervisor can make a better-informed decision from one place.
-
-### Key deliverables
-
-- **Shared platform and equipment API (Tatvik):** secure accounts, consistent equipment records, maintenance history, and a stable interface for the other parts of the system.
-- **Document intake and evidence search (Kavyansh):** upload manuals and reports, extract searchable text, and keep page or row references so users can check the original source.
-- **Knowledge graph and root-cause evidence (Hardik):** map equipment, components, suppliers, locations, and failure modes to reveal related risks and explain how they connect.
-- **Decision services (Prathmesh):** answer questions using document and graph evidence, show citations, and provide clearly labeled maintenance and compliance analysis.
-- **Supervisor dashboard (Anchal):** view assets, evidence, supplier risks, maintenance, and compliance information on the web.
-- **Technician mobile workflow (Surbhi):** look up an asset by QR code or ID, review available information, ask a question, and submit a field observation.
-
-### What 100% completion could help with in real operations
-
-At the intended 100% completion point—after all planned features are implemented, connected, and validated with approved operational data—the system could help teams:
-
-- Find relevant manual passages and incident history faster while troubleshooting equipment.
-- Spot common component or supplier risks across several assets, with links to the evidence behind the finding.
-- Prioritize inspections and maintenance using recorded history and, once trained and evaluated, predictive models.
-- Track compliance requirements and surface possible gaps with supporting records.
-- Keep field observations, equipment records, and supervisor follow-up in one connected workflow.
-- Send timely notifications about issues that meet agreed risk or maintenance rules.
-
-These are intended decision-support capabilities, not claims that the current prototype provides them all. Full completion also includes testing and evaluating models on representative data, production security and privacy controls, monitoring, reliable deployment and recovery, and end-to-end validation with plant users. Recommendations should remain reviewable by qualified staff, who make and approve operational decisions.
-
-## 🚀 Quick Start
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/HUMBLE-GODD/INDUSTRIAL_BRAIN.git
-   cd INDUSTRIAL_BRAIN
-   ```
-
-2. **Run setup:**
-   ```bash
-   chmod +x scripts/setup_dev.sh
-   ./scripts/setup_dev.sh
-   ```
-   *Alternatively, use `make setup`.*
-
-3. **Access Services:**
-   - **Backend API:** [http://localhost:8000](http://localhost:8000)
-   - **API docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-   - **Neo4j Browser:** [http://localhost:7474](http://localhost:7474) (User: `neo4j`, Pass: `industrial_brain_neo4j`)
-   - **Qdrant Dashboard:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
-
-The web and mobile apps run separately from Compose:
-
-```bash
-cd frontend && npm ci && npm run dev
-```
-
-```bash
-cd mobile && npm ci && npx expo start
-```
-
-The current clients use local demo data. End-to-end API workflows are part of the team assignments under `team_assignments/`.
-
-The backend container installs CPU-only PyTorch, so local embedding work runs on the CPU without CUDA libraries. On ARM-based machines, this avoids pulling the large CUDA packages that are not used. The first embedding operation or vector integration test downloads the BGE model from Hugging Face; keep an internet connection available for that first run.
-
-For any non-local deployment, set `APP_ENV=production` and provide a unique `JWT_SECRET`; the application rejects the development placeholder in production mode.
-
-## 📁 Project Structure
-
-```
-INDUSTRIAL_BRAIN/
-├── backend/       # FastAPI application
-├── Knowledge Graph Setup/ # Neo4j schema, seed, verify, and demo tools
-├── frontend/      # Next.js web application
-├── ml/            # Machine Learning models, data, and notebooks
-├── mobile/        # Expo React Native application
-├── scripts/       # Utility and setup scripts
-├── shared/        # Reserved for shared web/mobile types and API clients
-└── team_assignments/ # Six scoped team work packages
-```
-
-## 📋 Available Commands (Make)
-
-| Command | Description |
-|---|---|
-| `make dev` | Start all services via docker-compose |
-| `make down` | Stop all services |
-| `make restart` | Restart all services |
-| `make logs` | View all container logs |
-| `make logs-backend` | View only backend logs |
-| `make clean` | Stop containers and remove local database volumes |
-| `make seed` | Idempotently seed the demo knowledge graph |
-| `make seed-reset` | Clear and reseed the dedicated demo graph |
-| `make verify-graph` | Verify the demo knowledge graph and fail on errors |
-| `make test` | Run tests in the backend container |
-| `make shell` | Open a bash shell in the backend container |
-| `make psql` | Open a psql shell to the PostgreSQL DB |
-| `make neo4j-shell`| Opens the Neo4j browser UI |
-
-## Supervisor Demo Milestone
-
-The six team packages below are estimated to complete about 60% of the planned project scope needed for a supervisor demo, split evenly at 10 percentage points per member. This percentage describes project work, not the share of words in this README or the current completion level of the codebase. Count a package complete only after its acceptance checklist passes and its PR is merged. The remaining estimated 40% includes full ML training/evaluation on real datasets, push notifications, production security/operations, and deployment hardening.
-
-| Member | Assignment | Weight |
-|---|---|---:|
-| Tatvik | [Platform, data contract, and core API](team_assignments/tatvik_platform_data_api.md) | 10% |
-| Kavyansh | [Document intake and evidence index](team_assignments/kavyansh_documents_ingestion.md) | 10% |
-| Hardik | [Knowledge graph and supplier-risk evidence](team_assignments/hardik_knowledge_graph.md) | 10% |
-| Prathmesh | [AI query and decision services](team_assignments/prathmesh_decision_services.md) | 10% |
-| Anchal | [Web dashboard integration](team_assignments/anchal_web_dashboard.md) | 10% |
-| Surbhi | [Mobile field workflow](team_assignments/surbhi_mobile_field_app.md) | 10% |
-
-### Independent parallel work
-
-All six members can work from the current `main`; no assignment requires another team's branch to be merged first. Use the contracts in the assignment files and current repository, with local fixtures, mock APIs, or adapters for services another team is building. Do not import code from an unmerged branch. Keep each PR limited to its owned files and make its build and tests pass on its own. Record any contract assumptions so they can be reconciled during integration.
-
-After the six independent PRs are merged, wire the adapters to the real services and run the combined demo: upload a document, show a cited supplier-risk answer, follow up on the equipment in the dashboard, and submit a technician observation from mobile. Count the 60% milestone only after this integration and the acceptance criteria pass.
-
-`make clean` deletes local database volumes, including stored demo data.
-`make seed-reset` deletes every node and relationship in the configured Neo4j database before reseeding; use it only with a dedicated demo database.
-
-## 📜 License
-
-License selection is pending.
+This repository contains demonstration software and synthetic records. It has not been validated for a live plant or safety-critical operations. Human operators must review all results. Production deployment requires a strong unique `JWT_SECRET`, managed credentials, and operational hardening; the `.env.example` values are for local development only.

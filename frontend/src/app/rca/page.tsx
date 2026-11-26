@@ -14,10 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { mockRcaData } from "@/data/mockData";
 import { ApiEmpty, ApiLoading, ApiUnavailable, DemoDataNotice } from "@/components/ui/ApiState";
-import { rcaApi } from "@/lib/api/services";
-import type { RcaResult } from "@/lib/api/types";
-
-const knownEquipment = ["EQ-001", "EQ-002", "EQ-003", "EQ-004", "EQ-005"];
+import { equipmentApi, rcaApi } from "@/lib/api/services";
+import type { EquipmentResponse, RcaResult } from "@/lib/api/types";
 
 interface CausalNode {
   level: number;
@@ -28,15 +26,42 @@ interface CausalNode {
 export default function RcaPage() {
   const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
 
-  const equipmentList = demoEnabled ? mockRcaData.equipmentList : knownEquipment;
-  const [selectedEq, setSelectedEq] = useState(equipmentList[0]);
+  const fixtureEquipment = mockRcaData.equipmentList;
+  const [liveEquipment, setLiveEquipment] = useState<EquipmentResponse[]>([]);
+  const [isLoadingEquipment, setIsLoadingEquipment] = useState(!demoEnabled);
+  const [equipmentError, setEquipmentError] = useState<unknown>(null);
+  const equipmentList = demoEnabled ? fixtureEquipment : liveEquipment;
+  const [selectedEq, setSelectedEq] = useState(demoEnabled ? fixtureEquipment[0]?.id || "" : "");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [apiResult, setApiResult] = useState<RcaResult | null>(null);
 
+  const loadEquipment = useCallback(async () => {
+    if (demoEnabled) return;
+    setIsLoadingEquipment(true);
+    setEquipmentError(null);
+    try {
+      const response = await equipmentApi.list({ page: 1, page_size: 100 });
+      setLiveEquipment(response.items);
+      setSelectedEq((current) => current && response.items.some((item) => item.id === current)
+        ? current
+        : response.items[0]?.id || "");
+    } catch (requestError) {
+      setEquipmentError(requestError);
+    } finally {
+      setIsLoadingEquipment(false);
+    }
+  }, [demoEnabled]);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadEquipment);
+  }, [loadEquipment]);
+
   const fetchRca = useCallback(async (targetEquipment: string) => {
+    if (!targetEquipment) return;
     setIsAnalyzing(true);
     setError(null);
+    setApiResult(null);
 
     if (demoEnabled) {
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -56,31 +81,33 @@ export default function RcaPage() {
 
   // Initial fetch on mount & fetch whenever selectedEq changes
   useEffect(() => {
-    if (!demoEnabled) {
-      void fetchRca(selectedEq);
+    if (!demoEnabled && selectedEq) {
+      void Promise.resolve().then(() => fetchRca(selectedEq));
     }
   }, [demoEnabled, selectedEq, fetchRca]);
 
   // Manual trigger for "Run RCA Diagnostics"
-  const handleAnalyze = () => {
-    void fetchRca(selectedEq);
+  const handleAnalyze = () => { void fetchRca(selectedEq); };
+  const retry = () => {
+    if (equipmentList.length === 0) void loadEquipment();
+    else if (selectedEq) void fetchRca(selectedEq);
   };
 
   // Derive Banner data
-  const incidentId = demoEnabled ? mockRcaData.sampleRca.incidentId : "Not available";
+  const incidentId = demoEnabled ? mockRcaData.sampleRca.incidentId : "Graph risk paths";
   const incidentTimestamp = demoEnabled
     ? mockRcaData.sampleRca.timestamp
-    : "Timestamp not provided by API";
+    : "No dated incident timeline is part of this evidence.";
   const targetAssetName = demoEnabled
-    ? selectedEq
-    : apiResult?.equipment_name || selectedEq;
+    ? fixtureEquipment.find((equipment) => equipment.id === selectedEq)?.name || selectedEq
+    : apiResult?.equipment_name || liveEquipment.find((equipment) => equipment.id === selectedEq)?.name || selectedEq;
   const targetAssetSubtitle = demoEnabled
     ? "Hydraulic Booster Circuit #2"
     : `${apiResult?.equipment_id || selectedEq} · Criticality: ${apiResult?.equipment_criticality || "Not available"}`;
-  const confidenceScore = demoEnabled ? mockRcaData.sampleRca.confidenceScore : "Not available";
+  const confidenceScore = demoEnabled ? mockRcaData.sampleRca.confidenceScore : "Not provided";
   const confidenceSubtitle = demoEnabled
     ? "High cross-signal correlation"
-    : "Confidence score not supported by API";
+    : "This graph API returns relationships, not a model confidence score.";
 
   // Derive Tree / Risk Path data
   const treeSummary = demoEnabled
@@ -116,7 +143,9 @@ export default function RcaPage() {
       {demoEnabled && <DemoDataNotice />}
       <PageHeader
         title="Root Cause Analysis (RCA)"
-        description="Automated causal decomposition combining sensor anomaly traces, maintenance histories, and operating standard operating procedures."
+        description={demoEnabled
+          ? "Explore the local sample analysis or graph links between equipment, components, suppliers, and failure modes."
+          : "Explore graph-derived component, supplier, and failure-mode risk paths for the selected equipment. These links are risk evidence, not dated incident timelines or generated root-cause conclusions."}
         badge={
           <Badge variant={demoEnabled ? "Critical" : "Info"} dot>
             {demoEnabled ? "DEMO Diagnostic Engine Ready" : "Graph Risk Evidence"}
@@ -134,11 +163,12 @@ export default function RcaPage() {
             <select
               value={selectedEq}
               onChange={(e) => setSelectedEq(e.target.value)}
+              disabled={isLoadingEquipment || equipmentList.length === 0}
               className="bg-[#11192d] border border-slate-700/80 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 w-full sm:w-64"
             >
-              {equipmentList.map((eq) => (
-                <option key={eq} value={eq}>
-                  {eq}
+              {equipmentList.map((equipment) => (
+                <option key={equipment.id} value={equipment.id}>
+                  {equipment.id} · {equipment.name}
                 </option>
               ))}
             </select>
@@ -150,14 +180,18 @@ export default function RcaPage() {
             icon={<Play className="w-4 h-4 fill-current" />}
             isLoading={isAnalyzing}
             onClick={handleAnalyze}
+            disabled={!selectedEq || isLoadingEquipment}
           >
-            Run RCA Diagnostics
+            {demoEnabled ? "Run Demo Analysis" : "Refresh Risk Evidence"}
           </Button>
         </div>
       </Card>
 
-      {error !== null && <ApiUnavailable error={error} onRetry={() => void fetchRca(selectedEq)} />}
-      {isAnalyzing && <ApiLoading label="Running RCA diagnostics and retrieving graph risk paths…" />}
+      {equipmentError !== null && <ApiUnavailable error={equipmentError} onRetry={() => void loadEquipment()} />}
+      {error !== null && <ApiUnavailable error={error} onRetry={retry} />}
+      {isLoadingEquipment && <ApiLoading label="Loading equipment from the platform API…" />}
+      {!demoEnabled && !isLoadingEquipment && equipmentList.length === 0 && equipmentError === null && <ApiEmpty label="No equipment records are available for RCA." />}
+      {isAnalyzing && <ApiLoading label={demoEnabled ? "Running the local sample analysis…" : "Loading graph-derived risk evidence…"} />}
 
       {/* Non-ML disclaimer for API data */}
       {!demoEnabled && !isAnalyzing && apiResult && (
@@ -166,10 +200,10 @@ export default function RcaPage() {
         </div>
       )}
 
-      {/* 1. Incident Overview Banner */}
+      {/* 1. Evidence Overview Banner */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4">
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Incident Identifier</span>
+          <span className="text-[10px] text-slate-400 uppercase font-semibold">{demoEnabled ? "Sample Incident" : "Evidence Type"}</span>
           <div className="text-base font-bold text-white mt-1 font-mono">{incidentId}</div>
           <div className="text-[11px] text-slate-500 mt-0.5">{incidentTimestamp}</div>
         </div>
@@ -181,7 +215,7 @@ export default function RcaPage() {
         </div>
 
         <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4">
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">AI Confidence Score</span>
+          <span className="text-[10px] text-slate-400 uppercase font-semibold">{demoEnabled ? "AI Confidence Score" : "Model Confidence"}</span>
           <div className="text-base font-bold text-emerald-400 mt-1">{confidenceScore}</div>
           <div className="text-[11px] text-slate-400 mt-0.5">{confidenceSubtitle}</div>
         </div>

@@ -54,8 +54,13 @@ class Settings(BaseSettings):
             "dev-only-not-for-production",
             "change-me-to-a-random-secret-in-production",
         }
-        if self.APP_ENV == "production" and self.JWT_SECRET in insecure_secrets:
-            raise ValueError("Set a unique JWT_SECRET before running with APP_ENV=production.")
+        if self.APP_ENV == "production" and (
+            self.JWT_SECRET.strip().lower() in insecure_secrets
+            or len(self.JWT_SECRET.strip()) < 32
+        ):
+            raise ValueError(
+                "Set a unique JWT_SECRET with at least 32 characters before running with APP_ENV=production."
+            )
         return self
 
 @lru_cache()

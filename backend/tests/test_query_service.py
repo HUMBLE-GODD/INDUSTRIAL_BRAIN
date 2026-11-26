@@ -5,6 +5,7 @@ from httpx import ASGITransport, AsyncClient
 from unittest.mock import MagicMock
 
 from app.main import app
+from app.api.v1.dependencies import get_current_user
 from app.api.v1.query import get_query_service
 from app.schemas.query import Citation, GraphEvidence, QueryRequest
 from app.services.llm_service import LLMService
@@ -17,6 +18,14 @@ from app.services.graph_evidence_adapter import GraphServiceUnavailableError
 from tests.fakes.fake_graph import FakeGraphEvidence
 from tests.fakes.fake_llm import FakeLLMService
 from tests.fakes.fake_vector import FakeVectorSearch
+
+
+@pytest.fixture(autouse=True)
+def authenticated_api_requests():
+    """Exercise query behavior behind the API's required auth dependency."""
+    app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.mark.asyncio
@@ -141,7 +150,7 @@ async def test_query_endpoint_vector_unavailable_503():
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             resp = await client.post("/api/v1/query", json={"question": "Checking pump cavitation limits"})
             assert resp.status_code == 503
-            assert "Vector retrieval service is unavailable" in resp.json()["detail"]
+            assert "Vector retrieval service is unavailable" in resp.json()["error"]["message"]
     finally:
         app.dependency_overrides.pop(get_query_service, None)
 
@@ -161,7 +170,7 @@ async def test_query_endpoint_graph_unavailable_503():
                 json={"question": "Which supplier components are high risk?", "include_graph_evidence": True},
             )
             assert resp.status_code == 503
-            assert "Knowledge graph service is unavailable" in resp.json()["detail"]
+            assert "Knowledge graph service is unavailable" in resp.json()["error"]["message"]
     finally:
         app.dependency_overrides.pop(get_query_service, None)
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FileText,
   UploadCloud,
@@ -18,18 +18,32 @@ import { documentsApi } from "@/lib/api/services";
 import type { DocumentRecord } from "@/lib/api/types";
 import { ApiEmpty, ApiLoading, ApiUnavailable, DemoDataNotice } from "@/components/ui/ApiState";
 
+type CitationContext = {
+  page: string | null;
+  chunkId: string | null;
+  excerpt: string | null;
+};
+
 export default function DocumentsPage() {
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true";
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
-  const [docs, setDocs] = useState<typeof mockDocumentsData>(process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true" ? mockDocumentsData : []);
-  const [isLoading, setIsLoading] = useState(true);
+  const [docs, setDocs] = useState<typeof mockDocumentsData>(demoEnabled ? mockDocumentsData : []);
+  const [isLoading, setIsLoading] = useState(!demoEnabled);
   const [error, setError] = useState<unknown>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<DocumentRecord | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [citationContext, setCitationContext] = useState<CitationContext | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const citationEvidenceRef = useRef<HTMLDivElement>(null);
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
+    if (demoEnabled) {
+      setDocs(mockDocumentsData);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -46,12 +60,47 @@ export default function DocumentsPage() {
       })) as typeof mockDocumentsData);
     } catch (requestError) { setError(requestError); }
     finally { setIsLoading(false); }
-  };
+  }, [demoEnabled]);
 
-  useEffect(() => { void loadDocuments(); }, []);
+  useEffect(() => { void Promise.resolve().then(loadDocuments); }, [loadDocuments]);
+
+  useEffect(() => {
+    if (demoEnabled) return;
+    let cancelled = false;
+    void Promise.resolve().then(async () => {
+      if (cancelled) return;
+      const params = new URLSearchParams(window.location.search);
+      const documentId = params.get("document")?.trim();
+      if (!documentId) return;
+
+      const page = params.get("page");
+      const chunkId = params.get("chunk");
+      const excerpt = params.get("excerpt");
+      setCitationContext(page || chunkId || excerpt ? { page, chunkId, excerpt } : null);
+      setDetailLoading(true);
+      setError(null);
+      try {
+        const document = await documentsApi.get(documentId);
+        if (!cancelled) setSelectedDocument(document);
+      } catch (requestError) {
+        if (!cancelled) setError(requestError);
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [demoEnabled]);
+
+  useEffect(() => {
+    if (!citationContext || detailLoading) return;
+    const frame = window.requestAnimationFrame(() => {
+      citationEvidenceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [citationContext, detailLoading]);
 
   const handleUpload = async (file?: File) => {
-    if (!file) return;
+    if (!file || demoEnabled) return;
     setUploading(true); setError(null);
     try {
       await documentsApi.upload(file, { title: file.name });
@@ -61,12 +110,15 @@ export default function DocumentsPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (demoEnabled) return;
     setError(null);
     try { await documentsApi.remove(id); setDocs((current) => current.filter((doc) => doc.id !== id)); }
     catch (requestError) { setError(requestError); }
   };
 
   const handleDetail = async (id: string) => {
+    if (demoEnabled) return;
+    setCitationContext(null);
     setDetailLoading(true); setError(null);
     try { setSelectedDocument(await documentsApi.get(id)); }
     catch (requestError) { setError(requestError); }
@@ -92,31 +144,31 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true" && <DemoDataNotice />}
+      {demoEnabled && <DemoDataNotice />}
       <PageHeader
         title="Technical Documents & SOP Library"
         description="Centralized document store for engineering manuals, safety inspection logs, and sensor baselines."
-        badge={<Badge variant="Healthy" dot>5 Documents Indexed</Badge>}
+        badge={<Badge variant={demoEnabled ? "Info" : "Healthy"} dot>{demoEnabled ? "Sample Documents" : `${docs.length} Documents`}</Badge>}
         actions={
-          <Button variant="primary" size="sm" isLoading={uploading} onClick={() => fileInput.current?.click()} icon={<UploadCloud className="w-4 h-4" />}>
+          <Button variant="primary" size="sm" isLoading={uploading} disabled={demoEnabled} onClick={() => fileInput.current?.click()} icon={<UploadCloud className="w-4 h-4" />} title={demoEnabled ? "Switch to API mode to upload and index documents" : undefined}>
             Upload Document
           </Button>
         }
       />
 
       {/* Drag & Drop Upload Placeholder Area */}
-      <input ref={fileInput} type="file" className="hidden" onChange={(event) => { void handleUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} aria-label="Choose document to upload" />
+      <input ref={fileInput} type="file" className="hidden" disabled={demoEnabled} onChange={(event) => { void handleUpload(event.target.files?.[0]); event.currentTarget.value = ""; }} aria-label="Choose document to upload" />
       {error !== null && <ApiUnavailable error={error} onRetry={() => void loadDocuments()} />}
       {isLoading ? <ApiLoading label="Loading documents from the API…" /> : docs.length === 0 ? <ApiEmpty label="No documents are available from the API." /> : null}
-      <div role="button" tabIndex={0} onClick={() => fileInput.current?.click()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") fileInput.current?.click(); }} className="border-2 border-dashed border-slate-700/80 hover:border-cyan-500/50 bg-[#0b1220]/60 rounded-2xl p-8 text-center transition-all cursor-pointer group">
+      <div role={demoEnabled ? undefined : "button"} aria-disabled={demoEnabled} tabIndex={demoEnabled ? -1 : 0} onClick={() => { if (!demoEnabled) fileInput.current?.click(); }} onKeyDown={(event) => { if (!demoEnabled && (event.key === "Enter" || event.key === " ")) fileInput.current?.click(); }} className={`border-2 border-dashed border-slate-700/80 bg-[#0b1220]/60 rounded-2xl p-8 text-center transition-all group ${demoEnabled ? "cursor-not-allowed opacity-70" : "hover:border-cyan-500/50 cursor-pointer"}`}>
         <div className="w-12 h-12 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
           <UploadCloud className="w-6 h-6" />
         </div>
         <h3 className="text-sm font-semibold text-white">
-          Click or drag files here to upload
+          {demoEnabled ? "Sample document processing is shown in the local fixture" : "Click or drag files here to upload"}
         </h3>
         <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-          Supports PDF manuals, CAD specifications, CSV telemetry logs, and ISO audit checklists up to 50MB.
+          {demoEnabled ? "Switch to API mode and sign in to upload, extract, and index a document." : "Supports PDF manuals, plain text, and CSV records up to 50MB."}
         </p>
       </div>
 
@@ -175,7 +227,7 @@ export default function DocumentsPage() {
                     <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
                       {getDocIcon(doc.type)}
                     </div>
-                    <button onClick={() => void handleDetail(doc.id)} className="truncate max-w-xs text-left hover:text-cyan-300" title="View document details">{doc.name}</button>
+                    <button disabled={demoEnabled} onClick={() => void handleDetail(doc.id)} className="truncate max-w-xs text-left hover:text-cyan-300 disabled:cursor-default disabled:hover:text-white" title={demoEnabled ? "Sample fixture document" : "View document details"}>{doc.name}</button>
                   </td>
                   <td className="py-3.5 px-4 text-slate-300">{doc.category}</td>
                   <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">
@@ -198,6 +250,7 @@ export default function DocumentsPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => void handleDelete(doc.id)}
+                        disabled={demoEnabled}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800"
                         title="Delete Document"
                       >
@@ -213,7 +266,34 @@ export default function DocumentsPage() {
       </Card>
       <Card className="bg-[#0b1220]/90 border-slate-800">
         <div className="border-b border-slate-800 px-5 py-4 text-sm font-semibold text-slate-100">Document Details</div>
-        <div className="p-5 text-xs text-slate-300">{detailLoading ? <ApiLoading label="Loading document details…" /> : selectedDocument ? <dl className="grid gap-3 sm:grid-cols-2"><div><dt className="text-[10px] uppercase text-slate-500">Title</dt><dd className="mt-1 text-white">{selectedDocument.title}</dd></div><div><dt className="text-[10px] uppercase text-slate-500">Document ID</dt><dd className="mt-1 font-mono text-cyan-300">{selectedDocument.document_id}</dd></div><div><dt className="text-[10px] uppercase text-slate-500">File type</dt><dd className="mt-1">{selectedDocument.file_type}</dd></div><div><dt className="text-[10px] uppercase text-slate-500">Processing status</dt><dd className="mt-1">{selectedDocument.status}</dd></div><div><dt className="text-[10px] uppercase text-slate-500">Created</dt><dd className="mt-1">{selectedDocument.created_at}</dd></div><div><dt className="text-[10px] uppercase text-slate-500">Updated</dt><dd className="mt-1">{selectedDocument.updated_at || "—"}</dd></div></dl> : <ApiEmpty label="Select a document to inspect its metadata and processing status." />}</div>
+        <div className="p-5 text-xs text-slate-300">
+          {detailLoading ? <ApiLoading label="Loading document details…" /> : selectedDocument ? (
+            <dl className="grid gap-3 sm:grid-cols-2">
+              <div><dt className="text-[10px] uppercase text-slate-500">Title</dt><dd className="mt-1 text-white">{selectedDocument.title}</dd></div>
+              <div><dt className="text-[10px] uppercase text-slate-500">Document ID</dt><dd className="mt-1 font-mono text-cyan-300">{selectedDocument.document_id}</dd></div>
+              <div><dt className="text-[10px] uppercase text-slate-500">File type</dt><dd className="mt-1">{selectedDocument.file_type}</dd></div>
+              <div><dt className="text-[10px] uppercase text-slate-500">Processing status</dt><dd className="mt-1">{selectedDocument.status}</dd></div>
+              <div><dt className="text-[10px] uppercase text-slate-500">Created</dt><dd className="mt-1">{selectedDocument.created_at}</dd></div>
+              <div><dt className="text-[10px] uppercase text-slate-500">Updated</dt><dd className="mt-1">{selectedDocument.updated_at || "—"}</dd></div>
+            </dl>
+          ) : <ApiEmpty label="Select a document to inspect its metadata and processing status." />}
+          <div ref={citationEvidenceRef} id="citation-evidence" className="scroll-mt-24">
+            {citationContext && (
+              <section aria-labelledby="citation-evidence-title" className="mt-5 rounded-xl border border-cyan-500/20 bg-cyan-950/15 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 id="citation-evidence-title" className="text-xs font-semibold text-cyan-200">Cited evidence</h3>
+                {citationContext.page && <span className="text-[10px] text-slate-400">Page {citationContext.page}</span>}
+              </div>
+              {citationContext.excerpt ? (
+                <blockquote className="mt-2 whitespace-pre-wrap leading-relaxed text-slate-200">{citationContext.excerpt}</blockquote>
+              ) : (
+                <p className="mt-2 text-slate-400">No excerpt was included with this citation.</p>
+              )}
+              {citationContext.chunkId && <p className="mt-3 font-mono text-[10px] text-slate-500">Chunk {citationContext.chunkId}</p>}
+              </section>
+            )}
+          </div>
+        </div>
       </Card>
     </div>
   );

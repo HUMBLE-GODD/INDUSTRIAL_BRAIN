@@ -1,0 +1,7 @@
+checklist_id,equipment_id,regulation,status,last_audit,due_date,gap_or_evidence
+DEMO-COMP-101,EQ-101,ISO 45001 - Rotating Equipment,pending_audit,2026-03-01,2026-12-01,QA sign-off for the post-alignment vibration baseline is pending
+DEMO-COMP-102,EQ-101,OSHA 1910.147 - Lockout/Tagout,compliant,2026-01-15,2027-01-15,Current sample record packet complete
+DEMO-COMP-103,EQ-102,ISO 9001 - Batch Equipment Calibration,compliant,2026-02-02,2027-02-02,Current sample calibration packet complete
+DEMO-COMP-104,EQ-102,Factory Process Safety Review,pending_audit,2026-08-15,2027-02-15,Attach the gearbox oil-analysis report to the next review packet
+DEMO-COMP-105,EQ-103,Machine Guarding Standard,non_compliant,2026-11-17,2026-11-17,Guard-switch functional test failed; keep conveyor isolated until repair is witnessed
+DEMO-COMP-106,EQ-103,OSHA 1910.147 - Lockout/Tagout,pending_audit,2026-01-12,2026-12-15,Attach the signed isolation verification sheet for the active switch work order

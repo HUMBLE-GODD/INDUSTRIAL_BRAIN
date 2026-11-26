@@ -85,7 +85,7 @@ export default function MaintenancePage() {
     finally { setIsLoading(false); }
   }, [demoEnabled]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   /* ----- Demo view data ----- */
   const demoUrgencyCards = demoEnabled ? mockMaintenanceData.urgencyCards : [];

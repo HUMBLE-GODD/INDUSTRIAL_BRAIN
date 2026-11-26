@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 LLM_TIMEOUT_SECONDS: float = 15.0
 GEMINI_DEFAULT_MODEL: str = "gemini-2.0-flash"
 GROQ_DEFAULT_MODEL: str = "llama-3.1-8b-instant"
+CHUNK_CITATION_PATTERN = re.compile(
+    r"\[(?:Chunk|Chunk ID):\s*([^\]]+)\]", re.IGNORECASE
+)
 
 PLACEHOLDER_KEYS = {
     "",
@@ -231,7 +234,10 @@ class LLMService:
         all_citations: list[Citation],
     ) -> list[Citation]:
         """Ensures that only valid, retrieved citations are retained."""
-        referenced_chunk_ids = set(re.findall(r"\[(?:Chunk|Chunk ID):\s*([^\]]+)\]", generated_text, re.IGNORECASE))
+        referenced_chunk_ids = {
+            match.group(1).strip()
+            for match in CHUNK_CITATION_PATTERN.finditer(generated_text)
+        }
 
         matched: list[Citation] = []
         for cid in referenced_chunk_ids:
@@ -243,6 +249,17 @@ class LLMService:
 
         # If LLM summarized without explicit inline tags, retain all retrieved citations that formed the context
         return matched if matched else all_citations
+
+    def _strip_unverified_citation_markers(
+        self, generated_text: str, valid_chunk_map: dict[str, Citation]
+    ) -> str:
+        """Remove inline chunk references that were not returned by retrieval."""
+
+        def keep_verified(match: re.Match[str]) -> str:
+            chunk_id = match.group(1).strip()
+            return match.group(0) if chunk_id in valid_chunk_map else ""
+
+        return CHUNK_CITATION_PATTERN.sub(keep_verified, generated_text)
 
     async def _call_gemini(
         self,
@@ -265,7 +282,9 @@ class LLMService:
             )
 
         response = await asyncio.wait_for(_invoke(), timeout=self.timeout_seconds)
-        raw_text = response.text or ""
+        raw_text = self._strip_unverified_citation_markers(
+            response.text or "", valid_chunk_map
+        )
         narrative, recs = sanitize_and_separate_sections(raw_text)
         validated = self._validate_citations(raw_text, valid_chunk_map, citations)
 
@@ -303,7 +322,9 @@ class LLMService:
             )
 
         response = await asyncio.wait_for(_invoke(), timeout=self.timeout_seconds)
-        raw_text = response.choices[0].message.content or ""
+        raw_text = self._strip_unverified_citation_markers(
+            response.choices[0].message.content or "", valid_chunk_map
+        )
         narrative, recs = sanitize_and_separate_sections(raw_text)
         validated = self._validate_citations(raw_text, valid_chunk_map, citations)
 

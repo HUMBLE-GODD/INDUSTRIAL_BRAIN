@@ -113,7 +113,7 @@ export default function CompliancePage() {
     finally { setIsLoading(false); }
   }, [demoEnabled]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void Promise.resolve().then(load); }, [load]);
 
   const view = useMemo(() => demoEnabled ? fromDemo() : data ? fromApi(data) : null, [data, demoEnabled]);
   const complianceBadge = view ? `${view.overallScore} Compliant` : "Compliance API";

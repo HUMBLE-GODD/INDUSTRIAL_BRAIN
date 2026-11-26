@@ -57,7 +57,7 @@ Responses use a stable envelope:
   ],
   "page": 1,
   "page_size": 20,
-  "total": 5,
+  "total": 8,
   "pages": 1
 }
 ```
@@ -66,8 +66,9 @@ Responses use a stable envelope:
 structured `404` error. `GET /api/v1/equipment/{equipment_id}/history` returns
 a page of typed timeline events (maintenance, failure, alert, metric, or field
 observation when present) in the same pagination envelope. The PostgreSQL demo
-seed uses the graph's canonical equipment keys `EQ-001` through `EQ-005`; the
-human-readable tags such as `P-101` are part of each asset's name.
+seed uses the graph's canonical equipment keys `EQ-001` through `EQ-005` and
+`EQ-101` through `EQ-103`; the human-readable tags such as `P-101` and `P-102`
+are part of each asset's name.
 
 ## Field observations
 
@@ -151,6 +152,18 @@ make seed-db
 
 The command can be repeated safely. It uses the IDs and core equipment labels
 from `Knowledge Graph Setup/seed.py`.
+
+`make seed-db` now includes the Demo Factory's three assets and their fixed-ID
+maintenance, failure, metric (30 daily samples per asset), field-observation,
+and compliance history. The
+synthetic field observations use a dedicated seeded reporter identity to meet
+the observation table's user foreign key.
+
+`make seed-docs` indexes the sample pump manual and maintenance report plus the
+Demo Factory manual, maintenance log, and compliance register. `make demo`
+runs this document seed after the SQL and graph seeds. The first run needs an
+internet connection to download the embedding model and can take several
+minutes on CPU.
 
 Run the focused contract and migration tests from the backend directory with:
 

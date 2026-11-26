@@ -2,19 +2,23 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TabNavigator } from './TabNavigator';
 import { colors } from '../theme';
-
-// In the future, this will include auth check:
-// - If user is NOT logged in → show LoginScreen
-// - If user IS logged in → show TabNavigator
+import { API_IS_CONFIGURED } from '../lib/api/client';
+import { useSession } from '../auth/SessionContext';
+import AuthScreen from '../screens/auth/AuthScreen';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 export type RootStackParamList = {
   MainTabs: undefined;
-  // Future: Login, Register screens will go here
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
+  const { isReady, token } = useSession();
+
+  if (!isReady) return <LoadingSpinner message="Restoring your session…" />;
+  if (API_IS_CONFIGURED && !token) return <AuthScreen />;
+
   return (
     <Stack.Navigator
       screenOptions={{

@@ -14,7 +14,10 @@ async def main() -> None:
     async with AsyncSessionLocal() as session:
         await seed_demo_data(session)
     await get_engine().dispose()
-    print("Seeded canonical PostgreSQL demo data (EQ-001 through EQ-005).")
+    print(
+        "Seeded canonical demo data: 8 equipment, 13 maintenance records, "
+        "8 failures, 9 compliance checks, 90 daily metrics, and 6 field observations."
+    )
 
 
 if __name__ == "__main__":

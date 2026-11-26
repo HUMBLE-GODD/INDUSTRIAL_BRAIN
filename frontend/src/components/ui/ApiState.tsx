@@ -7,12 +7,17 @@ export function ApiLoading({ label = "Loading live data…" }: { label?: string 
 }
 
 export function ApiUnavailable({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
-  const message = error instanceof ApiError && error.status === 401
-    ? "Your session expired. Sign in again to load live data."
-    : error instanceof ApiError && error.status === 0
-      ? "The API cannot be reached. Check the configured API URL and network connection."
-      : "This live service is unavailable in the current environment.";
-  return <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-200"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" />{message}</span>{onRetry && <button onClick={onRetry} className="rounded-lg border border-amber-500/40 px-3 py-1.5 font-medium hover:bg-amber-500/10">Retry</button>}</div>;
+  const requiresSignIn = error instanceof ApiError && error.status === 401;
+  const message = error instanceof ApiError
+    ? error.status === 401
+      ? error.code === "authentication_required"
+        ? "Sign in from the header to load live data."
+        : "Your session expired. Sign in again to load live data."
+      : error.status === 0
+        ? "The API cannot be reached. Check the configured API URL and network connection."
+        : "This live service is unavailable in the current environment."
+    : "This live service is unavailable in the current environment.";
+  return <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-xs text-amber-200"><span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" />{message}</span>{onRetry && !requiresSignIn && <button onClick={onRetry} className="rounded-lg border border-amber-500/40 px-3 py-1.5 font-medium hover:bg-amber-500/10">Retry</button>}</div>;
 }
 
 export function ApiEmpty({ label = "No live data is available yet." }: { label?: string }) {

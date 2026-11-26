@@ -29,8 +29,8 @@ class GraphQueryService:
     """High-level async graph query service.
 
     All methods return plain dicts/lists so callers need not import neo4j.
-    On Neo4j unavailability each method returns a *degraded* sentinel value
-    (None or empty list) and logs a warning; credentials are never surfaced.
+    Neo4j unavailability is logged and propagated to the route layer, which
+    returns a clear 503 instead of a misleading empty result or 404.
     """
 
     async def get_graph_summary(self) -> dict[str, Any] | None:
@@ -39,7 +39,16 @@ class GraphQueryService:
                 return await repository.fetch_graph_summary(session)
         except (ServiceUnavailable, AuthError) as exc:
             logger.warning("Graph summary unavailable: %s", type(exc).__name__)
-            return None
+            raise
+
+    async def get_graph_visualization(self) -> dict[str, Any]:
+        """Return all graph nodes and edges for visualization clients."""
+        try:
+            async with neo4j_session() as session:
+                return await repository.fetch_graph_visualization(session)
+        except (ServiceUnavailable, AuthError) as exc:
+            logger.warning("Graph visualization unavailable: %s", type(exc).__name__)
+            raise
 
     async def get_supplier_risks(self) -> list[dict[str, Any]]:
         try:
@@ -47,19 +56,20 @@ class GraphQueryService:
                 return await repository.fetch_supplier_risks(session)
         except (ServiceUnavailable, AuthError) as exc:
             logger.warning("Supplier risks unavailable: %s", type(exc).__name__)
-            return []
+            raise
 
     async def get_rca(self, equipment_id: str) -> dict[str, Any] | None:
         """Return explainable RCA for *equipment_id*, or None if not found.
 
-        Raises nothing on Neo4j errors; returns None with a warning log.
+        Returns None when the equipment does not exist. Neo4j errors propagate
+        so the route can return a service-unavailable response.
         """
         try:
             async with neo4j_session() as session:
                 return await repository.fetch_rca_for_equipment(session, equipment_id)
         except (ServiceUnavailable, AuthError) as exc:
             logger.warning("RCA query unavailable: %s", type(exc).__name__)
-            return None
+            raise
 
     async def get_equipment_context(self, equipment_id: str) -> dict[str, Any] | None:
         """Context bundle for Prathmesh's answer-generation service."""
@@ -68,4 +78,4 @@ class GraphQueryService:
                 return await repository.fetch_equipment_context(session, equipment_id)
         except (ServiceUnavailable, AuthError) as exc:
             logger.warning("Equipment context unavailable: %s", type(exc).__name__)
-            return None
+            raise

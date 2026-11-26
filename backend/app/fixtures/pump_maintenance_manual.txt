@@ -8,11 +8,11 @@ License: Original work created for the Industrial Brain demo — freely usable w
 SECTION 1 — OVERVIEW
 ================================================================================
 
-This manual covers the centrifugal pump assembly P-101 installed in Facility A,
+This manual covers canonical asset EQ-001 (display tag P-101), the centrifugal pump assembly installed in Facility A,
 cooling-water circuit CW-01. P-101 is a horizontally-split-case centrifugal pump
 rated at 250 m³/h at 45 m head, driven by a 55 kW induction motor.
 
-Supplier: AquaFlow Systems Ltd (supplier code: SUP-001)
+Supplier: AlphaSeals Ltd (supplier code: SUP-001)
 Component: Mechanical seal assembly (part SKU: MCS-4420)
 Criticality: HIGH — single point of failure on CW-01
 
@@ -46,7 +46,7 @@ SECTION 3 — COMMON FAILURE MODES
 3.1 Mechanical Seal Failure
    Failure mode: Loss of containment / shaft leakage
    Root cause:   Dry running (suction loss), thermal shock, misalignment
-   Component:    Mechanical seal assembly (MCS-4420), supplied by AquaFlow Systems Ltd
+   Component:    Mechanical seal assembly (MCS-4420), supplied by AlphaSeals Ltd
    Supplier code: SUP-001
    MTBF under normal operation: 18 months
    Corrective action: Isolate pump, replace seal kit per IB-WI-MCS-4420.
@@ -76,9 +76,9 @@ SECTION 5 — PARTS LIST
 
 Part Description              SKU          Supplier        Lead Time (days)
 -------------------------------------------------------------------------------------
-Mechanical seal assembly      MCS-4420     AquaFlow SUP-001   14
+Mechanical seal assembly      MCS-4420     AlphaSeals SUP-001 14
 Bearing set (drive end)       BRG-6309-2Z  GlobalBear SUP-002  7
 Bearing set (non-drive end)   BRG-6307-2Z  GlobalBear SUP-002  7
-Impeller 250mm                IMP-250-SS   AquaFlow SUP-001   21
+Impeller 250mm                IMP-250-SS   GammaFluids SUP-003 21
 Shaft sleeve                  SLS-30-SS    InduParts  SUP-003  10
 Coupling insert               CPI-100-PU   FlexCoup   SUP-004   5

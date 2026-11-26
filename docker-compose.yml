@@ -17,6 +17,8 @@ services:
       - .env
     volumes:
       - ./backend/app:/app/app
+      - ./backend/scripts:/app/scripts
+      - ./backend/tests:/app/tests
       - "./Knowledge Graph Setup:/opt/knowledge-graph:ro"
       - upload_data:/app/uploads
     healthcheck:

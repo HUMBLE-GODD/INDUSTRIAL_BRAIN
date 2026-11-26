@@ -1,7 +1,7 @@
 """
 seed.py
 -------
-Seed script: populates Neo4j with 5 sample industrial equipment,
+Seed script: populates Neo4j with 8 sample industrial equipment,
 their components, suppliers, locations, failure modes, and all
 relevant relationships.
 
@@ -33,6 +33,7 @@ LOCATIONS = [
     {"location_id": "LOC-001", "name": "Plant A — Floor 1", "building": "A", "floor": 1},
     {"location_id": "LOC-002", "name": "Plant A — Floor 2", "building": "A", "floor": 2},
     {"location_id": "LOC-003", "name": "Plant B — Outdoor", "building": "B", "floor": 0},
+    {"location_id": "LOC-004", "name": "Demo Factory — Building D", "building": "D", "floor": 1},
 ]
 
 SUPPLIERS = [
@@ -41,6 +42,9 @@ SUPPLIERS = [
     {"supplier_id": "SUP-003", "name": "GammaFluids Co",     "country": "India",    "rating": 4.1},
     {"supplier_id": "SUP-004", "name": "DeltaMotors GmbH",   "country": "Germany",  "rating": 4.7},
     {"supplier_id": "SUP-005", "name": "EpsilonValves Ltd",  "country": "UK",       "rating": 2.9},  # ← hidden pattern: low-rated
+    {"supplier_id": "SUP-006", "name": "RotorSafe Drives", "country": "India", "rating": 3.4},
+    {"supplier_id": "SUP-007", "name": "SealWorks Midlands", "country": "UK", "rating": 4.3},
+    {"supplier_id": "SUP-008", "name": "MotionGuard Components", "country": "Germany", "rating": 3.8},
 ]
 
 EQUIPMENT = [
@@ -99,6 +103,39 @@ EQUIPMENT = [
         "criticality":   "critical",
         "location_id":   "LOC-002",
     },
+    {
+        "equipment_id": "EQ-101",
+        "name":          "Demo Factory Centrifugal Pump P-102",
+        "type":          "Pump",
+        "model":         "RDX-420",
+        "manufacturer":  "RotorSafe Systems",
+        "status":        "operational",
+        "install_date":  "2022-05-12",
+        "criticality":   "high",
+        "location_id":   "LOC-004",
+    },
+    {
+        "equipment_id": "EQ-102",
+        "name":          "Process Mixer MX-220",
+        "type":          "Mixer",
+        "model":         "MX-2200",
+        "manufacturer":  "ThermalCore Industries",
+        "status":        "operational",
+        "install_date":  "2023-02-08",
+        "criticality":   "medium",
+        "location_id":   "LOC-004",
+    },
+    {
+        "equipment_id": "EQ-103",
+        "name":          "Packaging Conveyor CV-330",
+        "type":          "Conveyor",
+        "model":         "FlexLine 330",
+        "manufacturer":  "MotionGuard Industrial",
+        "status":        "maintenance",
+        "install_date":  "2021-09-20",
+        "criticality":   "high",
+        "location_id":   "LOC-004",
+    },
 ]
 
 # Each component carries: which equipment it belongs to + which supplier made it
@@ -124,6 +161,17 @@ COMPONENTS = [
     # EQ-005 · Boiler BLR-501
     {"component_id": "CMP-011", "name": "Safety Relief Valve", "type": "Valve",   "equipment_id": "EQ-005", "supplier_id": "SUP-005"},  # low-rated supplier
     {"component_id": "CMP-012", "name": "Water Pump",          "type": "Pump",    "equipment_id": "EQ-005", "supplier_id": "SUP-001"},
+
+    # Demo Factory · EQ-101–EQ-103
+    {"component_id": "CMP-101", "name": "Flexible Drive Coupling", "type": "Coupling", "equipment_id": "EQ-101", "supplier_id": "SUP-006"},
+    {"component_id": "CMP-102", "name": "Process Mechanical Seal", "type": "Seal", "equipment_id": "EQ-101", "supplier_id": "SUP-007"},
+    {"component_id": "CMP-103", "name": "Pump Vibration Probe", "type": "Sensor", "equipment_id": "EQ-101", "supplier_id": "SUP-008"},
+    {"component_id": "CMP-104", "name": "Mixer Gearbox Filter", "type": "Filter", "equipment_id": "EQ-102", "supplier_id": "SUP-006"},
+    {"component_id": "CMP-105", "name": "Agitator Shaft Seal", "type": "Seal", "equipment_id": "EQ-102", "supplier_id": "SUP-007"},
+    {"component_id": "CMP-106", "name": "Gearbox Temperature Probe", "type": "Sensor", "equipment_id": "EQ-102", "supplier_id": "SUP-008"},
+    {"component_id": "CMP-107", "name": "Conveyor Drive Motor", "type": "Motor", "equipment_id": "EQ-103", "supplier_id": "SUP-008"},
+    {"component_id": "CMP-108", "name": "Conveyor Drive Belt", "type": "Belt", "equipment_id": "EQ-103", "supplier_id": "SUP-006"},
+    {"component_id": "CMP-109", "name": "Guard Interlock Switch", "type": "Safety Switch", "equipment_id": "EQ-103", "supplier_id": "SUP-008"},
 ]
 
 FAILURE_MODES = [
@@ -132,6 +180,10 @@ FAILURE_MODES = [
     {"failure_mode_id": "FM-003", "name": "Valve Sticking",       "severity": "medium",   "typical_cause": "Corrosion or debris"},
     {"failure_mode_id": "FM-004", "name": "Belt Slippage",        "severity": "low",      "typical_cause": "Worn or misaligned belt"},
     {"failure_mode_id": "FM-005", "name": "Pressure Buildup",     "severity": "critical", "typical_cause": "Blocked relief valve"},
+    {"failure_mode_id": "FM-006", "name": "Coupling Misalignment", "severity": "high", "typical_cause": "Soft foot, loose hold-downs, or thermal movement"},
+    {"failure_mode_id": "FM-007", "name": "Gearbox Oil Starvation", "severity": "high", "typical_cause": "Restricted filter or low lubricant flow"},
+    {"failure_mode_id": "FM-008", "name": "Guard Interlock Failure", "severity": "critical", "typical_cause": "Misaligned or damaged safety switch actuator"},
+    {"failure_mode_id": "FM-009", "name": "Motor Insulation Degradation", "severity": "high", "typical_cause": "Moisture ingress at terminal enclosure"},
 ]
 
 # Relationship: which failure modes are associated with which components
@@ -144,6 +196,15 @@ COMPONENT_FAILURE_LINKS = [
     ("CMP-011", "FM-005"),  # Safety Relief Valve → Pressure Buildup
     ("CMP-010", "FM-002"),  # Roller Bearing → Bearing Overheating
     ("CMP-008", "FM-003"),  # Piston Ring → Valve Sticking (wear-related)
+    ("CMP-101", "FM-006"),
+    ("CMP-102", "FM-001"),
+    ("CMP-103", "FM-006"),
+    ("CMP-104", "FM-007"),
+    ("CMP-105", "FM-001"),
+    ("CMP-106", "FM-007"),
+    ("CMP-107", "FM-009"),
+    ("CMP-108", "FM-004"),
+    ("CMP-109", "FM-008"),
 ]
 
 
@@ -249,6 +310,9 @@ def seed(svc: GraphService, *, reset: bool = False) -> None:
     similar_pairs = [
         ("EQ-001", "EQ-005"),   # both have pump components
         ("EQ-002", "EQ-003"),   # both use SUP-005 (low-rated)
+        ("EQ-101", "EQ-102"),   # shared drive and seal suppliers in the factory scenario
+        ("EQ-102", "EQ-103"),
+        ("EQ-101", "EQ-103"),
     ]
     for a, b in similar_pairs:
         svc.merge_relationship(

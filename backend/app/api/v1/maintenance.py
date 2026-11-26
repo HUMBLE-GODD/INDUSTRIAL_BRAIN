@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.dependencies import get_current_user
 from app.db.session import get_db
 from app.schemas.maintenance import MaintenancePredictionResponse
 from app.services.maintenance_service import EquipmentNotFoundError, MaintenanceService
@@ -27,11 +28,12 @@ def get_maintenance_service() -> MaintenanceService:
     description=(
         "Returns explainable heuristic risk evaluations based on operating age, criticality, and historical maintenance/failure records. "
         "Explicitly labeled as heuristic rules, not machine-learned predictions. "
-        "Note: Implemented without auth dependency for this independent PR pending Tatvik's platform auth merge."
+        "Requires a valid bearer token. Results are transparent rule-based estimates, not trained model predictions."
     ),
 )
 async def get_maintenance_predictions(
     equipment_id: Optional[str] = Query(default=None, description="Optional equipment identifier filter (e.g. EQ-001)"),
+    _current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     service: MaintenanceService = Depends(get_maintenance_service),
 ) -> MaintenancePredictionResponse:

@@ -1,6 +1,9 @@
 node_modules/
 .expo/
 dist/
+.env
+.env.*
+!.env.example
 npm-debug.*
 *.jks
 *.p8
@@ -10,6 +13,11 @@ npm-debug.*
 *.orig.*
 web-build/
 .claude/
+
+# The repository ignores generic `lib/` directories; keep this app's API source tracked.
+!src/lib/
+!src/lib/api/
+!src/lib/api/*.ts
 
 # macOS
 .DS_Store
