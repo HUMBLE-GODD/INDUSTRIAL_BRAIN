@@ -7,18 +7,26 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { mockAiQueryData } from "@/data/mockData";
+import { aiApi } from "@/lib/api/services";
+import { ApiUnavailable, DemoDataNotice } from "@/components/ui/ApiState";
+import type { AiCitation } from "@/lib/api/types";
+
+type ConversationMessage = { role: "user" | "assistant"; content: string; timestamp: string; relatedAssets?: string[]; citations?: AiCitation[]; disclaimer?: string | null; sourceMode?: string };
 
 export default function AiQueryPage() {
   const [query, setQuery] = useState("");
-  const [messages, setMessages] = useState(mockAiQueryData.sampleConversation);
+  const [messages, setMessages] = useState<ConversationMessage[]>(
+    process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true" ? mockAiQueryData.sampleConversation as ConversationMessage[] : []
+  );
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<unknown>(null);
 
-  const handleAsk = (textToAsk?: string) => {
+  const handleAsk = async (textToAsk?: string) => {
     const q = textToAsk || query;
     if (!q.trim()) return;
 
     const userMsg = {
-      role: "user",
+      role: "user" as const,
       content: q,
       timestamp: "Just now",
     };
@@ -26,33 +34,44 @@ export default function AiQueryPage() {
     setMessages((prev) => [...prev, userMsg]);
     setQuery("");
     setIsLoading(true);
-
-    // Mock response simulation
-    setTimeout(() => {
+    setError(null);
+    try {
+      const result = await aiApi.query(q);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Local demo response for "${q}". No API call was made. This demo displays local seed records and does not query live telemetry, maintenance history, or compliance systems.`,
+          content: result.answer || "The API returned an empty answer.",
           timestamp: "Just now",
+          relatedAssets: result.citations?.map((citation) => citation.title) || [],
+          citations: result.citations,
+          disclaimer: result.disclaimer,
+          sourceMode: result.source_mode,
         },
       ]);
+    } catch (requestError) {
+      setError(requestError);
+      if (requestError instanceof Error && "isUnauthorized" in requestError) setQuery(q);
       setIsLoading(false);
-    }, 600);
+      return;
+    }
+    setIsLoading(false);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA === "true" && <DemoDataNotice />}
       <PageHeader
         title="AI Query Assistant"
-        description="Try example questions against the local seed records. Responses on this page are demo text, not live system results."
-        badge={<Badge variant="Info" dot>Local Demo Only</Badge>}
+        description="Natural language queries across equipment telemetry, maintenance logs, and compliance standards."
+        badge={<Badge variant="Pending" dot>AI Operations Ready</Badge>}
         actions={
           <Button variant="secondary" size="sm" icon={<History className="w-4 h-4" />}>
             Query History
           </Button>
         }
       />
+      {error !== null && <ApiUnavailable error={error} />}
 
       {/* Suggested Questions Grid */}
       <div className="space-y-2">
@@ -116,19 +135,15 @@ export default function AiQueryPage() {
               >
                 <div className="whitespace-pre-line font-sans">{msg.content}</div>
 
-                {msg.relatedAssets && (
+                {msg.sourceMode && <div className="mt-2 text-[10px] text-slate-400">Source mode: <span className="text-cyan-300">{msg.sourceMode}</span></div>}
+                {msg.disclaimer && <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-950/20 px-2 py-1.5 text-[10px] text-amber-200">{msg.disclaimer}</div>}
+                {(msg.relatedAssets || msg.citations) && (
                   <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] uppercase font-bold text-slate-400">
                       Citations & References:
                     </span>
-                    {msg.relatedAssets.map((asset, aIdx) => (
-                      <span
-                        key={aIdx}
-                        className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 border border-slate-700"
-                      >
-                        {asset}
-                      </span>
-                    ))}
+                    {msg.citations?.map((citation) => <a key={`${citation.document_id}-${citation.chunk_id}`} href={`/documents?document=${encodeURIComponent(citation.document_id)}`} className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 border border-slate-700 hover:border-cyan-400" title={citation.excerpt}>{citation.title}</a>)}
+                    {!msg.citations && msg.relatedAssets?.map((asset, aIdx) => <span key={aIdx} className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-cyan-400 border border-slate-700">{asset}</span>)}
                   </div>
                 )}
 
@@ -146,7 +161,7 @@ export default function AiQueryPage() {
               </div>
               <div className="p-3.5 rounded-2xl bg-[#0f182c] border border-slate-700/80 text-xs text-slate-400 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                Preparing a local demo response...
+                Synthesizing multi-modal knowledge graph...
               </div>
             </div>
           )}

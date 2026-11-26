@@ -14,12 +14,18 @@ import { Badge } from "@/components/ui/Badge";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { mockAnalyticsData } from "@/data/mockData";
+import { ApiPending, DemoDataNotice } from "@/components/ui/ApiState";
 
 export default function AnalyticsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("Last 6 Months");
 
+  if (process.env.NEXT_PUBLIC_ENABLE_DEMO_DATA !== "true") {
+    return <div className="space-y-6 animate-in fade-in duration-300"><PageHeader title="Industrial Telemetry & Operational Analytics" description="Predictive failure trend models, MTBF/MTTR diagnostics, and energy efficiency telemetry." badge={<Badge variant="Pending" dot>Backend Pending</Badge>} /><ApiPending feature="Telemetry analytics and failure trend data" /></div>;
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      <DemoDataNotice />
       <PageHeader
         title="Seed Equipment Demo Analytics"
         description="Illustrative metrics for the five seeded equipment records. No live telemetry is connected."

@@ -61,7 +61,7 @@ export function Sidebar({
 
   const systemNav: NavItem[] = [
     { href: "/maintenance", label: "Work Orders", icon: ClipboardList },
-    { href: "/dashboard", label: "Equipment", icon: Cpu },
+    { href: "/equipment", label: "Equipment", icon: Cpu },
     { href: "/dashboard", label: "Alerts", icon: Bell, badge: "12", badgeColor: "bg-rose-500" },
     { href: "/documents", label: "Reports", icon: FileSpreadsheet },
     { href: "/dashboard", label: "Settings", icon: Settings },
